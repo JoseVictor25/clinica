@@ -27,7 +27,7 @@ class TenantJWTAuthentication(JWTAuthentication):
         from apps.seguridad.models import Usuario
 
         try:
-            usuario = Usuario.all_objects.get(
+            usuario = Usuario.all_objects.select_related("clinica").get(
                 **{api_settings.USER_ID_FIELD: user_id}
             )
         except Usuario.DoesNotExist as exc:
@@ -37,6 +37,10 @@ class TenantJWTAuthentication(JWTAuthentication):
             raise AuthenticationFailed("El usuario está inactivo.")
 
         if usuario.clinica_id:
+            if not usuario.clinica.estado:
+                from .api_exceptions import ClinicaInactiva
+
+                raise ClinicaInactiva("La clínica está inactiva.")
             set_clinica_actual(usuario.clinica)
         elif usuario.is_superuser:
             set_bypass()
