@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  backend:
+    name: Backend (Django + PostgreSQL)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: clinicas_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d clinicas_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      SECRET_KEY: "ci-secret-key-solo-para-pruebas"
+      DEBUG: "False"
+      ALLOWED_HOSTS: "localhost,127.0.0.1,testserver"
+      TIME_ZONE: "America/La_Paz"
+      DB_NAME: "clinicas_test"
+      DB_USER: "postgres"
+      DB_PASSWORD: "postgres"
+      DB_HOST: "127.0.0.1"
+      DB_PORT: "5432"
+      CORS_ALLOWED_ORIGINS: "http://localhost:5173"
+      JWT_ACCESS_TOKEN_LIFETIME_MINUTES: "60"
+      JWT_REFRESH_TOKEN_LIFETIME_DAYS: "7"
+      ADMIN_SISTEMA_USERNAME: "admin_ci"
+      ADMIN_SISTEMA_EMAIL: "admin_ci@example.test"
+      ADMIN_SISTEMA_PASSWORD: "ClaveCI123!"
+      SEED_CREAR_CLINICA_DEMO: "True"
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Comprobar configuración de Django
+        run: python manage.py check
+
+      - name: Verificar que no haya migraciones pendientes
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Aplicar migraciones
+        run: python manage.py migrate --noinput
+
+      - name: Ejecutar pruebas
+        run: pytest
