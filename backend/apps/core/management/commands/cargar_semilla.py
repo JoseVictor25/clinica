@@ -13,40 +13,14 @@ Carga:
 Se puede ejecutar varias veces sin duplicar registros.
 """
 
-from decimal import Decimal
-
 from decouple import UndefinedValueError, config
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from apps.clinicas.models import Clinica, PlanSuscripcion
+from apps.core.seed_data import ESPECIALIDADES_BASE, PLANES_BASE, ROLES_BASE
 from apps.personal.models import Especialidad
 from apps.seguridad.models import Rol, Usuario
-
-PLANES = [
-    ("Básico", Decimal("29.00"), 5, "Plan básico para clínicas pequeñas."),
-    ("Estándar", Decimal("59.00"), 15, "Plan para clínicas en crecimiento."),
-    ("Premium", Decimal("99.00"), 50, "Plan para clínicas grandes."),
-]
-
-ROLES = [
-    ("Administrador de clínica", "Gestiona usuarios, personal y configuración de la clínica."),
-    ("Recepcionista", "Gestiona citas y atención al paciente."),
-    ("Médico", "Atiende consultas y registra historias clínicas."),
-    ("Conductor", "Realiza traslados en ambulancia."),
-    ("Paciente", "Accede a su información clínica."),
-]
-
-ESPECIALIDADES = [
-    "Medicina General",
-    "Pediatría",
-    "Cardiología",
-    "Ginecología",
-    "Traumatología",
-    "Dermatología",
-    "Neurología",
-    "Oftalmología",
-]
 
 
 def _env(nombre, default=None, cast=str):
@@ -81,7 +55,7 @@ class Command(BaseCommand):
 
     def _cargar_planes(self):
         creados = 0
-        for nombre, precio, max_usuarios, descripcion in PLANES:
+        for nombre, precio, max_usuarios, descripcion in PLANES_BASE:
             _, creado = PlanSuscripcion.objects.get_or_create(
                 nombre=nombre,
                 defaults={
@@ -126,7 +100,7 @@ class Command(BaseCommand):
     def _cargar_roles(self, clinicas):
         creados = 0
         for clinica in clinicas:
-            for nombre, descripcion in ROLES:
+            for nombre, descripcion in ROLES_BASE:
                 _, creado = Rol.all_objects.get_or_create(
                     clinica=clinica,
                     nombre=nombre,
@@ -138,7 +112,7 @@ class Command(BaseCommand):
     def _cargar_especialidades(self, clinicas):
         creadas = 0
         for clinica in clinicas:
-            for nombre in ESPECIALIDADES:
+            for nombre in ESPECIALIDADES_BASE:
                 _, creada = Especialidad.all_objects.get_or_create(
                     clinica=clinica,
                     nombre=nombre,
