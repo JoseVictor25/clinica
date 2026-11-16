@@ -168,6 +168,30 @@ cp .env.example .env
 npm run dev
 ```
 
+## Docker
+
+El repositorio incluye una configuracion de desarrollo y otra de produccion.
+Docker no requiere que el trabajo este en `main`; utiliza los archivos de la
+rama actualmente seleccionada.
+
+Inicio rapido para desarrollo:
+
+```powershell
+Copy-Item .env.docker.example .env.docker
+# Edite .env.docker y cambie sus claves y contrasenas.
+docker compose --env-file .env.docker up --build
+```
+
+Las migraciones se aplican antes de iniciar Django. La carga de datos semilla es
+deliberadamente manual:
+
+```powershell
+docker compose --env-file .env.docker --profile tools run --rm seed
+```
+
+Consulte [`docs/docker.md`](docs/docker.md) para desarrollo, produccion, pruebas,
+registros, respaldo y limpieza de contenedores.
+
 ## Documentación
 
 - [`docs/arquitectura.md`](docs/arquitectura.md): stack, capas, estrategia multitenant y API del Sprint 1.
