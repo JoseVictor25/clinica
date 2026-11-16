@@ -13,6 +13,7 @@ export interface UsuarioClinica {
   fecha_creacion: string
   /** Nombres de los roles activos. */
   roles: string[]
+  paciente_vinculado: boolean
 }
 
 export interface CrearUsuarioInput {
