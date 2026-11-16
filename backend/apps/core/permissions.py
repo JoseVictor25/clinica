@@ -2,7 +2,12 @@
 
 from rest_framework.permissions import BasePermission
 
-from apps.core.seed_data import ROL_ADMIN_CLINICA, ROL_MEDICO
+from apps.core.seed_data import (
+    ROL_ADMIN_CLINICA,
+    ROL_MEDICO,
+    ROL_PACIENTE,
+    ROL_RECEPCIONISTA,
+)
 
 
 def _usuario_autenticado(usuario):
@@ -67,6 +72,15 @@ class EsMedico(BasePermission):
         return tiene_rol(request.user, ROL_MEDICO)
 
 
+class EsPaciente(BasePermission):
+    """Permite el acceso al portal al rol Paciente habilitado."""
+
+    message = "Se requiere el rol Paciente."
+
+    def has_permission(self, request, view):
+        return tiene_rol(request.user, ROL_PACIENTE)
+
+
 class EsAdminClinicaOMedico(BasePermission):
     """Permite el acceso al administrador de clínica o a un médico."""
 
@@ -75,6 +89,44 @@ class EsAdminClinicaOMedico(BasePermission):
     def has_permission(self, request, view):
         return tiene_rol(request.user, ROL_ADMIN_CLINICA) or tiene_rol(
             request.user, ROL_MEDICO
+        )
+
+
+class PuedeConsultarEnfermedades(EsAdminClinicaOMedico):
+    """Lectura clínica para administradores de clínica y médicos."""
+
+    message = "El rol del usuario no permite consultar enfermedades."
+
+
+class PuedeConsultarAlergias(EsAdminClinicaOMedico):
+    """Lectura de alergias para administradores de clínica y médicos."""
+
+    message = "El rol del usuario no permite consultar alergias."
+
+
+class EsAdminClinicaORecepcionista(BasePermission):
+    message = "Se requiere el rol Administrador de clínica o Recepcionista."
+
+    def has_permission(self, request, view):
+        return tiene_rol(request.user, ROL_ADMIN_CLINICA) or tiene_rol(request.user, ROL_RECEPCIONISTA)
+
+
+class PuedeConsultarPacientes(BasePermission):
+    message = "El rol del usuario no permite consultar pacientes."
+
+    def has_permission(self, request, view):
+        return any(tiene_rol(request.user, rol) for rol in (ROL_ADMIN_CLINICA, ROL_RECEPCIONISTA, ROL_MEDICO))
+
+
+class PuedeConsultarRecursosCita(BasePermission):
+    """Lectura de especialidades y médicos necesaria para crear citas."""
+
+    message = "El rol del usuario no permite consultar recursos de citas."
+
+    def has_permission(self, request, view):
+        return any(
+            tiene_rol(request.user, rol)
+            for rol in (ROL_ADMIN_CLINICA, ROL_RECEPCIONISTA, ROL_MEDICO)
         )
 
 

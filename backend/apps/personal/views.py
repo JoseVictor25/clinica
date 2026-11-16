@@ -10,12 +10,13 @@ from rest_framework.response import Response
 from apps.core.permissions import (
     EsAdminClinica,
     EsAdminClinicaOMedico,
+    PuedeConsultarRecursosCita,
     TieneClinica,
     TieneSuscripcionVigente,
     tiene_rol,
 )
 from apps.core.querysets import queryset_tenant
-from apps.core.seed_data import ROL_ADMIN_CLINICA
+from apps.core.seed_data import ROL_ADMIN_CLINICA, ROL_RECEPCIONISTA
 from apps.seguridad.serializers import UsuarioSerializer
 
 from .models import Especialidad, HorarioAtencion, Medico, Personal
@@ -65,6 +66,10 @@ ERRORES_COMUNES = {
 
 def _es_admin_clinica(usuario):
     return tiene_rol(usuario, ROL_ADMIN_CLINICA)
+
+
+def _es_recepcionista(usuario):
+    return tiene_rol(usuario, ROL_RECEPCIONISTA)
 
 
 def _personal_del_usuario(usuario):
@@ -187,7 +192,7 @@ class EspecialidadViewSet(viewsets.ModelViewSet):
             return [
                 TieneClinica(),
                 TieneSuscripcionVigente(),
-                EsAdminClinicaOMedico(),
+                PuedeConsultarRecursosCita(),
             ]
         return [
             TieneClinica(),
@@ -249,7 +254,7 @@ class MedicoViewSet(viewsets.ModelViewSet):
             return [
                 TieneClinica(),
                 TieneSuscripcionVigente(),
-                EsAdminClinicaOMedico(),
+                PuedeConsultarRecursosCita(),
             ]
         return [
             TieneClinica(),
@@ -262,7 +267,7 @@ class MedicoViewSet(viewsets.ModelViewSet):
         usuario = self.request.user
         if not getattr(usuario, "is_authenticated", False):
             return qs
-        if _es_admin_clinica(usuario):
+        if _es_admin_clinica(usuario) or _es_recepcionista(usuario):
             especialidad = self.request.query_params.get("especialidad")
             if especialidad:
                 qs = qs.filter(especialidad_id=especialidad)
