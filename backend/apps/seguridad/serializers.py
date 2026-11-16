@@ -1,5 +1,6 @@
 """Serializers de autenticación, usuarios y roles."""
 
+from django.core.exceptions import ObjectDoesNotExist
 from rest_framework import serializers
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
@@ -63,6 +64,7 @@ class UsuarioSerializer(serializers.ModelSerializer):
         source="clinica.nombre", read_only=True
     )
     roles = serializers.SerializerMethodField()
+    paciente_vinculado = serializers.SerializerMethodField()
 
     class Meta:
         model = Usuario
@@ -77,11 +79,19 @@ class UsuarioSerializer(serializers.ModelSerializer):
             "is_superuser",
             "fecha_creacion",
             "roles",
+            "paciente_vinculado",
         )
         read_only_fields = fields
 
     def get_roles(self, obj) -> list[str]:
         return roles_activos(obj)
+
+    def get_paciente_vinculado(self, obj) -> bool:
+        try:
+            obj.paciente
+        except ObjectDoesNotExist:
+            return False
+        return True
 
 
 class UsuarioCreateSerializer(serializers.Serializer):

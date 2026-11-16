@@ -192,7 +192,7 @@ class UsuarioViewSet(viewsets.ModelViewSet):
     ordering = ("username",)
 
     def get_queryset(self):
-        return queryset_tenant(Usuario, self.request)
+        return queryset_tenant(Usuario, self.request).select_related("paciente")
 
     def get_serializer_class(self):
         if self.action == "create":
