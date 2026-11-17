@@ -1,0 +1,123 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    env_file: .env.docker
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--locale-provider=icu --icu-locale=es-BO"
+    ports:
+      - "${POSTGRES_PORT_EXTERNAL:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  migrate:
+    build:
+      context: ./backend
+      target: development
+    env_file: .env.docker
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      RUN_MIGRATIONS: "1"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["python", "-c", "print('Migraciones aplicadas correctamente.')"]
+    restart: "no"
+
+  backend:
+    build:
+      context: ./backend
+      target: development
+    init: true
+    restart: unless-stopped
+    env_file: .env.docker
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+    ports:
+      - "${BACKEND_PORT_EXTERNAL:-8000}:8000"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health/', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  frontend:
+    build:
+      context: ./frontend
+      target: development
+    init: true
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: http://localhost:${BACKEND_PORT_EXTERNAL:-8000}/api/v1
+    ports:
+      - "${FRONTEND_PORT_EXTERNAL:-5173}:5173"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  seed:
+    build:
+      context: ./backend
+      target: development
+    profiles: ["tools"]
+    env_file: .env.docker
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+    volumes:
+      - ./backend:/app
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    command: ["python", "manage.py", "cargar_semilla"]
+    restart: "no"
+
+  test-backend:
+    build:
+      context: ./backend
+      target: development
+    profiles: ["tools"]
+    env_file: .env.docker
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DJANGO_SETTINGS_MODULE: config.settings_test
+    volumes:
+      - ./backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["pytest", "-p", "no:cacheprovider"]
+    restart: "no"
+
+volumes:
+  postgres_data:
+  frontend_node_modules:
