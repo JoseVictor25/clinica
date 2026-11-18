@@ -16,7 +16,7 @@ from apps.core.api_exceptions import (
     PermisoDenegado,
     SuscripcionVencida,
 )
-from apps.core.seed_data import ROL_ADMIN_CLINICA
+from apps.core.seed_data import ROL_ADMIN_CLINICA, ROL_PACIENTE
 
 from .models import Rol, Usuario, UsuarioRol
 
@@ -24,6 +24,15 @@ from .models import Rol, Usuario, UsuarioRol
 def roles_activos(usuario):
     if not getattr(usuario, "pk", None):
         return []
+    asignaciones_prefetch = getattr(
+        usuario, "_prefetched_objects_cache", {}
+    ).get("roles_asignados")
+    if asignaciones_prefetch is not None:
+        return sorted(
+            asignacion.rol.nombre
+            for asignacion in asignaciones_prefetch
+            if asignacion.rol.estado
+        )
     return list(
         UsuarioRol.all_objects.filter(usuario=usuario, rol__estado=True)
         .order_by("rol__nombre")
@@ -147,7 +156,13 @@ def _asegurar_admin_restante(usuario):
         )
 
 
-def crear_usuario_clinica(clinica, datos, roles=None, bootstrap=False):
+def crear_usuario_clinica(
+    clinica,
+    datos,
+    roles=None,
+    bootstrap=False,
+    permitir_rol_paciente=False,
+):
     """
     Crea un usuario de clínica.
 
@@ -159,6 +174,14 @@ def crear_usuario_clinica(clinica, datos, roles=None, bootstrap=False):
 
     password = datos.pop("password")
     roles = list(roles or [])
+
+    if not permitir_rol_paciente and any(
+        rol.nombre == ROL_PACIENTE for rol in roles
+    ):
+        raise DatosInvalidos(
+            "El rol Paciente solo se asigna desde el registro de Pacientes.",
+            codigo="rol_paciente_no_permitido",
+        )
 
     if Usuario.all_objects.filter(username=datos["username"]).exists():
         raise Conflicto(
@@ -229,6 +252,19 @@ def actualizar_usuario_clinica(usuario, datos):
             if password is not None:
                 usuario.set_password(password)
             usuario.save()
+            if "email" in datos:
+                from apps.pacientes.models import Paciente
+                from apps.personal.models import Personal
+
+                Paciente.all_objects.filter(usuario=usuario).update(
+                    email=usuario.email
+                )
+                personal = Personal.all_objects.filter(usuario=usuario).first()
+                if personal is not None:
+                    Paciente.all_objects.filter(
+                        clinica=personal.clinica,
+                        ci=personal.ci,
+                    ).update(email=usuario.email)
     except IntegrityError as exc:
         raise Conflicto(
             "El email no está disponible.", codigo="email_duplicado"
@@ -244,6 +280,11 @@ def desactivar_usuario(usuario):
 
 
 def asignar_rol(usuario, rol):
+    if rol.nombre == ROL_PACIENTE:
+        raise DatosInvalidos(
+            "El rol Paciente solo se asigna desde el registro de Pacientes.",
+            codigo="rol_paciente_no_permitido",
+        )
     if usuario.clinica_id != rol.clinica_id:
         raise Conflicto(
             "El usuario y el rol deben pertenecer a la misma clínica.",
@@ -259,9 +300,29 @@ def asignar_rol(usuario, rol):
 
 
 def quitar_rol(usuario_rol):
-    if usuario_rol.rol.nombre == ROL_ADMIN_CLINICA:
-        _asegurar_admin_restante(usuario_rol.usuario)
-    usuario_rol.delete()
+    from apps.personal.role_policy import personal_activo_que_requiere
+
+    with transaction.atomic():
+        # Personal se bloquea antes que Usuario/UsuarioRol en todos los flujos.
+        personal = personal_activo_que_requiere(
+            usuario_rol.usuario, usuario_rol.rol, bloquear=True
+        )
+        Usuario.all_objects.select_for_update().get(pk=usuario_rol.usuario_id)
+        asignacion = (
+            UsuarioRol.all_objects.select_for_update()
+            .select_related("usuario", "rol")
+            .get(pk=usuario_rol.pk)
+        )
+        if personal is not None:
+            raise Conflicto(
+                f"No puede quitar el rol {asignacion.rol.nombre} mientras la cuenta "
+                f"esté vinculada a un personal activo con cargo "
+                f"{personal.get_cargo_display()}.",
+                codigo="rol_requerido_por_personal",
+            )
+        if asignacion.rol.nombre == ROL_ADMIN_CLINICA:
+            _asegurar_admin_restante(asignacion.usuario)
+        asignacion.delete()
 
 
 def cambiar_password(usuario, password_actual, password_nueva):

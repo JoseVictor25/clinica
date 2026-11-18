@@ -6,6 +6,7 @@ from django.core.management import call_command
 from apps.clinicas.models import Clinica, PlanSuscripcion
 from apps.personal.models import Especialidad
 from apps.seguridad.models import Rol, Usuario
+from apps.core.seed_data import ROL_ENFERMERIA, ROLES_BASE
 
 
 @pytest.mark.django_db
@@ -21,7 +22,8 @@ def test_semilla_es_idempotente(monkeypatch):
 
     assert PlanSuscripcion.objects.count() == 3
     assert Clinica.objects.count() == 1
-    assert Rol.all_objects.count() == 5
+    assert Rol.all_objects.count() == len(ROLES_BASE)
+    assert Rol.all_objects.filter(nombre=ROL_ENFERMERIA).exists()
     assert Especialidad.all_objects.count() == 8
     assert Usuario.all_objects.filter(username="admin_semilla").count() == 1
 
@@ -34,7 +36,7 @@ def test_semilla_es_idempotente(monkeypatch):
 
     assert PlanSuscripcion.objects.count() == 3
     assert Clinica.objects.count() == 1
-    assert Rol.all_objects.count() == 5
+    assert Rol.all_objects.count() == len(ROLES_BASE)
     assert Especialidad.all_objects.count() == 8
     assert Usuario.all_objects.filter(username="admin_semilla").count() == 1
 

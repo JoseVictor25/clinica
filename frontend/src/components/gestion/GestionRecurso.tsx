@@ -12,12 +12,12 @@ import { Field } from '@/components/ui/Field'
 import { inputClass } from '@/components/ui/styles'
 import { DataTable, type Columna } from '@/components/data/DataTable'
 
-export type ValoresFormulario = Record<string, string | boolean>
+export type ValoresFormulario = Record<string, string | boolean | string[]>
 export interface Opcion { valor: string; etiqueta: string }
 export interface CampoFormulario {
   nombre: string
   etiqueta: string
-  tipo?: 'text' | 'email' | 'password' | 'number' | 'date' | 'time' | 'tel' | 'textarea' | 'select' | 'checkbox'
+  tipo?: 'text' | 'email' | 'password' | 'number' | 'date' | 'time' | 'tel' | 'textarea' | 'select' | 'multiselect' | 'checkbox'
   obligatorio?: boolean
   maxLength?: number
   min?: number | string
@@ -122,9 +122,24 @@ export function FormularioRecurso<T extends { id: number }>({
             </div>
           )
           if (lectura) {
-            const texto = campo.opciones?.find((opcion) => opcion.valor === String(valor))?.etiqueta ?? String(valor)
+            const texto = Array.isArray(valor)
+              ? valor.map((seleccion) => campo.opciones?.find((opcion) => opcion.valor === seleccion)?.etiqueta ?? seleccion).join(', ')
+              : campo.opciones?.find((opcion) => opcion.valor === String(valor))?.etiqueta ?? String(valor)
             return <div key={campo.nombre}><p className="text-sm font-medium text-slate-700">{campo.etiqueta}</p><p className="whitespace-pre-wrap break-words text-sm">{texto || '—'}</p></div>
           }
+          if (campo.tipo === 'multiselect') return (
+            <Field key={campo.nombre} id={id} label={campo.etiqueta} error={errores[campo.nombre]}>
+              <select id={id} className={inputClass} multiple value={Array.isArray(valor) ? valor : []}
+                disabled={guardar.isPending || soloLectura} aria-invalid={Boolean(errores[campo.nombre])}
+                onChange={(e) => setValores((actual) => ({
+                  ...actual,
+                  [campo.nombre]: Array.from(e.target.selectedOptions, (opcion) => opcion.value),
+                }))}>
+                {campo.opciones?.map((opcion) => <option key={opcion.valor} value={opcion.valor}>{opcion.etiqueta}</option>)}
+              </select>
+              {campo.ayuda && <p className="text-xs text-slate-500">{campo.ayuda}</p>}
+            </Field>
+          )
           const comunes = {
             id, className: inputClass, value: String(valor), required: campo.obligatorio,
             disabled: guardar.isPending, 'aria-invalid': Boolean(errores[campo.nombre]),

@@ -11,6 +11,7 @@ import { Pagination } from '@/components/data/Pagination'
 import { SearchBar } from '@/components/data/SearchBar'
 import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { inputClass } from '@/components/ui/styles'
 import { useListaPaginada } from '@/hooks/useListaPaginada'
 import { mensajeDeError } from '@/lib/errorMessages'
 import { PersonalFormModal } from './PersonalFormModal'
@@ -23,6 +24,7 @@ function mostrarFecha(fecha: string): string {
 
 export function PersonalPage() {
   const queryClient = useQueryClient()
+  const [estado, setEstado] = useState<'true' | 'false' | ''>('true')
 
   const {
     page,
@@ -30,7 +32,9 @@ export function PersonalPage() {
     search,
     setSearch,
     query,
-  } = useListaPaginada('personal', personalApi.listar)
+  } = useListaPaginada('personal', personalApi.listar, {
+    estado: estado || undefined,
+  })
 
   // undefined: cerrado; null: crear; objeto: editar.
   const [formulario, setFormulario] = useState<
@@ -38,14 +42,14 @@ export function PersonalPage() {
   >(undefined)
 
   const [aVincular, setAVincular] = useState<Personal | null>(null)
-  const [aEliminar, setAEliminar] = useState<Personal | null>(null)
+  const [aFinalizar, setAFinalizar] = useState<Personal | null>(null)
 
-  const eliminar = useMutation({
-    mutationFn: (id: number) => personalApi.eliminar(id),
+  const finalizar = useMutation({
+    mutationFn: (id: number) => personalApi.finalizarRelacion(id),
 
     onSuccess: () => {
-      toast.success('Registro de personal eliminado.')
-      setAEliminar(null)
+      toast.success('Relación laboral finalizada. El historial fue conservado.')
+      setAFinalizar(null)
 
       void queryClient.invalidateQueries({
         queryKey: ['personal'],
@@ -53,11 +57,23 @@ export function PersonalPage() {
       void queryClient.invalidateQueries({
         queryKey: ['usuarios'],
       })
+      void queryClient.invalidateQueries({ queryKey: ['medicos'] })
     },
 
     onError: (error) => {
       toast.error(mensajeDeError(error))
     },
+  })
+
+  const reactivar = useMutation({
+    mutationFn: (id: number) => personalApi.reactivar(id),
+    onSuccess: () => {
+      toast.success('Relación laboral reactivada.')
+      void queryClient.invalidateQueries({ queryKey: ['personal'] })
+      void queryClient.invalidateQueries({ queryKey: ['usuarios'] })
+      void queryClient.invalidateQueries({ queryKey: ['medicos'] })
+    },
+    onError: (error) => toast.error(mensajeDeError(error)),
   })
 
   const columnas: Columna<Personal>[] = [
@@ -93,7 +109,7 @@ export function PersonalPage() {
       celda: (fila) =>
         fila.usuario === null
           ? 'Sin vincular'
-          : `Vinculada (ID ${fila.usuario})`,
+          : fila.cuenta?.username ?? `Vinculada (ID ${fila.usuario})`,
     },
     {
       encabezado: 'Estado',
@@ -116,7 +132,7 @@ export function PersonalPage() {
         <div className="flex flex-wrap justify-end gap-2">
           <Button
             variante="secundario"
-            disabled={eliminar.isPending}
+            disabled={finalizar.isPending || reactivar.isPending}
             onClick={() => setFormulario(fila)}
           >
             Editar
@@ -124,19 +140,30 @@ export function PersonalPage() {
 
           <Button
             variante="secundario"
-            disabled={eliminar.isPending}
+            disabled={finalizar.isPending || reactivar.isPending}
             onClick={() => setAVincular(fila)}
           >
             Cuenta
           </Button>
 
-          <Button
-            variante="peligro"
-            disabled={eliminar.isPending}
-            onClick={() => setAEliminar(fila)}
-          >
-            Eliminar
-          </Button>
+          {fila.estado ? (
+            <Button
+              variante="peligro"
+              disabled={finalizar.isPending || reactivar.isPending}
+              onClick={() => setAFinalizar(fila)}
+            >
+              Finalizar relación
+            </Button>
+          ) : (
+            <Button
+              variante="secundario"
+              cargando={reactivar.isPending}
+              disabled={finalizar.isPending}
+              onClick={() => reactivar.mutate(fila.id)}
+            >
+              Reactivar
+            </Button>
+          )}
         </div>
       ),
     },
@@ -150,7 +177,7 @@ export function PersonalPage() {
         </h1>
 
         <Button
-          disabled={eliminar.isPending}
+          disabled={finalizar.isPending || reactivar.isPending}
           onClick={() => setFormulario(null)}
         >
           Registrar personal
@@ -158,16 +185,32 @@ export function PersonalPage() {
       </div>
 
       <p className="text-sm text-slate-600">
-        Registra al personal de la clínica y vincula sus cuentas
-        de acceso. El estado del personal y el de su cuenta de
-        usuario se administran por separado.
+        Registra al personal de la clínica y vincula sus cuentas de acceso.
+        Finalizar una relación bloquea el acceso laboral y conserva el
+        historial, la identidad y cualquier acceso como paciente.
       </p>
 
-      <SearchBar
-        valor={search}
-        onBuscar={setSearch}
-        placeholder="Buscar por CI, nombre, apellido o teléfono…"
-      />
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,20rem)_14rem]">
+        <SearchBar
+          valor={search}
+          onBuscar={setSearch}
+          placeholder="Buscar por CI, nombre, apellido o teléfono…"
+        />
+
+        <select
+          aria-label="Filtrar personal por estado"
+          className={inputClass}
+          value={estado}
+          onChange={(event) => {
+            setEstado(event.target.value as 'true' | 'false' | '')
+            setPage(1)
+          }}
+        >
+          <option value="true">Personal activo</option>
+          <option value="false">Relaciones finalizadas</option>
+          <option value="">Todo el personal</option>
+        </select>
+      </div>
 
       <DataTable
         filas={query.data?.results}
@@ -204,6 +247,7 @@ export function PersonalPage() {
         <PersonalFormModal
           personal={formulario}
           onClose={() => setFormulario(undefined)}
+          onCreated={(creado) => setAVincular(creado)}
         />
       )}
 
@@ -214,20 +258,20 @@ export function PersonalPage() {
         />
       )}
 
-      {aEliminar && (
+      {aFinalizar && (
         <ConfirmDialog
-          titulo="Eliminar personal"
-          mensaje={`¿Quieres eliminar a "${aEliminar.nombre} ${aEliminar.apellido}"? La eliminación es permanente y no elimina su cuenta de usuario. Si tiene un médico asociado u otras relaciones protegidas, el backend impedirá la operación.`}
-          textoConfirmar="Eliminar personal"
-          cargando={eliminar.isPending}
+          titulo="Finalizar relación laboral"
+          mensaje={`¿Quieres finalizar la relación laboral de "${aFinalizar.nombre} ${aFinalizar.apellido}"? Se desactivará su acceso laboral y su perfil médico, si existe. Su cuenta, vínculo e historial permanecerán registrados; si también es paciente conservará ese acceso.`}
+          textoConfirmar="Finalizar relación"
+          cargando={finalizar.isPending}
           onConfirmar={() => {
-            if (!eliminar.isPending) {
-              eliminar.mutate(aEliminar.id)
+            if (!finalizar.isPending) {
+              finalizar.mutate(aFinalizar.id)
             }
           }}
           onCancelar={() => {
-            if (!eliminar.isPending) {
-              setAEliminar(null)
+            if (!finalizar.isPending) {
+              setAFinalizar(null)
             }
           }}
         />

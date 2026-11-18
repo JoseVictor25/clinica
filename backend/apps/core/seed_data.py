@@ -5,6 +5,7 @@ from decimal import Decimal
 ROL_ADMIN_CLINICA = "Administrador de clínica"
 ROL_RECEPCIONISTA = "Recepcionista"
 ROL_MEDICO = "Médico"
+ROL_ENFERMERIA = "Enfermería"
 ROL_CONDUCTOR = "Conductor"
 ROL_PACIENTE = "Paciente"
 
@@ -15,6 +16,10 @@ ROLES_BASE = [
     ),
     (ROL_RECEPCIONISTA, "Gestiona citas y atención al paciente."),
     (ROL_MEDICO, "Atiende consultas y registra historias clínicas."),
+    (
+        ROL_ENFERMERIA,
+        "Apoya la atención clínica y registra información de enfermería.",
+    ),
     (ROL_CONDUCTOR, "Realiza traslados en ambulancia."),
     (ROL_PACIENTE, "Accede a su información clínica."),
 ]

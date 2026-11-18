@@ -6,13 +6,15 @@ import type { ListParams, Paginated } from '@/types/api'
 export function useListaPaginada<T>(
   clave: string,
   listar: (params: ListParams) => Promise<Paginated<T>>,
+  filtros: ListParams = {},
 ) {
   const [page, setPage] = useState(1)
   const [search, setSearchEstado] = useState('')
 
   const query = useQuery({
-    queryKey: [clave, { page, search }],
-    queryFn: () => listar({ page, search: search || undefined }),
+    queryKey: [clave, { page, search, ...filtros }],
+    queryFn: () =>
+      listar({ page, search: search || undefined, ...filtros }),
     placeholderData: keepPreviousData,
   })
 

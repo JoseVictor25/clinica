@@ -37,7 +37,7 @@ def _payload_usuario(username="nuevo", roles=None):
 
 
 @pytest.mark.django_db
-def test_admin_crea_usuario_y_asigna_roles(
+def test_admin_debe_crear_cuenta_desde_una_identidad(
     admin_a, clinica_configurada, suscripcion_amplia
 ):
     rol_medico = Rol.all_objects.get(
@@ -50,16 +50,9 @@ def test_admin_crea_usuario_y_asigna_roles(
         format="json",
     )
 
-    assert respuesta.status_code == 201
-    cuerpo = respuesta.json()
-    assert cuerpo["username"] == "nuevo"
-    assert cuerpo["roles"] == [ROL_MEDICO]
-    assert "password" not in respuesta.content.decode().lower()
-
-    creado = Usuario.all_objects.get(username="nuevo")
-    assert creado.clinica_id == admin_a.clinica_id
-    assert creado.is_staff is False
-    assert creado.check_password(CLAVE)
+    assert respuesta.status_code == 400
+    assert respuesta.json()["codigo"] == "origen_cuenta_requerido"
+    assert not Usuario.all_objects.filter(username="nuevo").exists()
 
 
 @pytest.mark.django_db
@@ -73,9 +66,9 @@ def test_clinica_nunca_se_toma_del_cuerpo(
         USUARIOS_URL, payload, format="json"
     )
 
-    assert respuesta.status_code == 201
-    creado = Usuario.all_objects.get(username="nuevo")
-    assert creado.clinica_id == admin_a.clinica_id
+    assert respuesta.status_code == 400
+    assert respuesta.json()["codigo"] == "origen_cuenta_requerido"
+    assert not Usuario.all_objects.filter(username="nuevo").exists()
 
 
 @pytest.mark.django_db
@@ -90,7 +83,7 @@ def test_crear_usuario_sin_suscripcion_vigente(admin_a):
 
 
 @pytest.mark.django_db
-def test_crear_usuario_respeta_limite_del_plan(
+def test_crear_usuario_general_exige_origen_aun_con_plan_disponible(
     admin_a, clinica_configurada
 ):
     plan = PlanSuscripcion.objects.create(
@@ -102,13 +95,12 @@ def test_crear_usuario_respeta_limite_del_plan(
         USUARIOS_URL, _payload_usuario(), format="json"
     )
 
-    assert respuesta.status_code == 409
-    assert respuesta.json()["codigo"] == "limite_usuarios"
-    assert respuesta.json()["detalles"]["max_usuarios"] == 1
+    assert respuesta.status_code == 400
+    assert respuesta.json()["codigo"] == "origen_cuenta_requerido"
 
 
 @pytest.mark.django_db
-def test_crear_usuario_con_password_invalida(
+def test_crear_usuario_general_no_procesa_password(
     admin_a, suscripcion_amplia
 ):
     payload = _payload_usuario()
@@ -119,7 +111,7 @@ def test_crear_usuario_con_password_invalida(
     )
 
     assert respuesta.status_code == 400
-    assert respuesta.json()["codigo"] == "password_invalida"
+    assert respuesta.json()["codigo"] == "origen_cuenta_requerido"
 
 
 @pytest.mark.django_db
@@ -374,15 +366,14 @@ def test_concurrencia_max_usuarios_solo_uno_crea(
         resultados = list(executor.map(crear, [1, 2]))
 
     codigos = sorted(resultado[0] for resultado in resultados)
-    assert codigos == [201, 409]
-
-    rechazado = next(
-        cuerpo for codigo, cuerpo in resultados if codigo == 409
+    assert codigos == [400, 400]
+    assert all(
+        cuerpo["codigo"] == "origen_cuenta_requerido"
+        for _, cuerpo in resultados
     )
-    assert rechazado["codigo"] == "limite_usuarios"
     assert (
         Usuario.all_objects.filter(
             username__startswith="concurrente_"
         ).count()
-        == 1
+        == 0
     )

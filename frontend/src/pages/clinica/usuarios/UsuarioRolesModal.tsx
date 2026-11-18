@@ -12,6 +12,7 @@ import { Modal } from '@/components/ui/Modal'
 import { inputClass } from '@/components/ui/styles'
 import { useAuth } from '@/hooks/useAuth'
 import { mensajeDeError } from '@/lib/errorMessages'
+import { ROL_PACIENTE } from '@/lib/roles'
 
 interface Props {
   usuario: UsuarioClinica
@@ -46,6 +47,7 @@ export function UsuarioRolesModal({ usuario, onClose }: Props) {
   const disponibles = roles.data?.filter(
     (rol) =>
       rol.estado &&
+      rol.nombre !== ROL_PACIENTE &&
       !asignaciones.data?.some(
         (asignacion) => asignacion.rol === rol.id,
       ),
@@ -177,11 +179,13 @@ export function UsuarioRolesModal({ usuario, onClose }: Props) {
                       <span className="text-sm text-slate-700">
                         {asignacion.rol_nombre}
                         {rol?.estado === false && ' (inactivo)'}
+                        {asignacion.requerido_por_personal && <span className="block text-xs text-blue-700">Requerido por Personal</span>}
+                        {asignacion.motivo_proteccion && <span className="block text-xs text-slate-500">{asignacion.motivo_proteccion}</span>}
                       </span>
 
                       <Button
                         variante="peligro"
-                        disabled={operacion.isPending}
+                        disabled={operacion.isPending || asignacion.requerido_por_personal}
                         onClick={() => {
                           setErrorGeneral(null)
                           setAQuitar(asignacion)
@@ -257,6 +261,7 @@ export function UsuarioRolesModal({ usuario, onClose }: Props) {
               >
                 Asignar otro rol
               </label>
+              <p className="text-xs text-slate-500">El rol Paciente se asigna desde el registro de Pacientes.</p>
 
               <select
                 id="rol-nuevo"

@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useRef, useState } from 'react'
+import { useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import {
@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/Button'
 import { Field } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
 import { inputClass } from '@/components/ui/styles'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { aplicarErroresDeApi } from '@/lib/formErrors'
 
 const esquema = z.object({
@@ -63,9 +64,10 @@ interface Props {
   /** null indica que se creará un registro. */
   personal: Personal | null
   onClose: () => void
+  onCreated?: (personal: Personal) => void
 }
 
-export function PersonalFormModal({ personal, onClose }: Props) {
+export function PersonalFormModal({ personal, onClose, onCreated }: Props) {
   const queryClient = useQueryClient()
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
 
@@ -73,6 +75,8 @@ export function PersonalFormModal({ personal, onClose }: Props) {
     register,
     handleSubmit,
     setError,
+    setValue,
+    control,
     formState: { errors },
   } = useForm<Valores>({
     resolver: zodResolver(esquema),
@@ -87,13 +91,46 @@ export function PersonalFormModal({ personal, onClose }: Props) {
     },
   })
 
+  const ciActual = useWatch({ control, name: 'ci' }).trim()
+  const ciConsultada = useDebouncedValue(ciActual)
+  const identidadAplicada = useRef<string | null>(null)
+  const identidadQuery = useQuery({
+    queryKey: ['identidad-paciente-por-ci', ciConsultada],
+    queryFn: () => personalApi.identidadPorCi(ciConsultada),
+    enabled: !personal && ciConsultada.length > 0,
+    staleTime: 30_000,
+  })
+  const identidadEncontrada = Boolean(
+    !personal &&
+      identidadQuery.data?.encontrado &&
+      identidadQuery.data.ci === ciActual,
+  )
+
+  useEffect(() => {
+    if (personal || ciConsultada !== ciActual) return
+    const identidad = identidadQuery.data
+    if (identidad?.encontrado) {
+      setValue('nombre', identidad.nombre, { shouldValidate: true })
+      setValue('apellido', identidad.apellido, { shouldValidate: true })
+      setValue('telefono', identidad.telefono, { shouldValidate: true })
+      identidadAplicada.current = identidad.ci
+      return
+    }
+    if (!identidadQuery.isFetching && identidadAplicada.current) {
+      setValue('nombre', '')
+      setValue('apellido', '')
+      setValue('telefono', '')
+      identidadAplicada.current = null
+    }
+  }, [ciActual, ciConsultada, identidadQuery.data, identidadQuery.isFetching, personal, setValue])
+
   const guardar = useMutation({
     mutationFn: (valores: Valores) =>
       personal
         ? personalApi.actualizar(personal.id, valores)
         : personalApi.crear(valores),
 
-    onSuccess: () => {
+    onSuccess: (guardado) => {
       toast.success(
         personal ? 'Personal actualizado.' : 'Personal registrado.',
       )
@@ -104,14 +141,19 @@ export function PersonalFormModal({ personal, onClose }: Props) {
       void queryClient.invalidateQueries({
         queryKey: ['medicos'],
       })
+      void queryClient.invalidateQueries({
+        queryKey: ['pacientes'],
+      })
 
       onClose()
+      if (!personal) onCreated?.(guardado)
     },
 
     onError: (error) => {
       setErrorGeneral(
         aplicarErroresDeApi(error, setError, CAMPOS, {
           ci_duplicada: 'ci',
+          ci_no_modificable: 'ci',
         }),
       )
     },
@@ -157,7 +199,16 @@ export function PersonalFormModal({ personal, onClose }: Props) {
             <input
               id={campo.nombre}
               type={campo.nombre === 'telefono' ? 'tel' : 'text'}
-              className={inputClass}
+              className={`${inputClass} ${
+                (personal && campo.nombre === 'ci') ||
+                (identidadEncontrada && campo.nombre !== 'ci')
+                  ? 'bg-slate-100 text-slate-600'
+                  : ''
+              }`}
+              readOnly={
+                Boolean(personal && campo.nombre === 'ci') ||
+                (identidadEncontrada && campo.nombre !== 'ci')
+              }
               maxLength={campo.maximo}
               aria-invalid={Boolean(errors[campo.nombre])}
               aria-describedby={
@@ -169,6 +220,13 @@ export function PersonalFormModal({ personal, onClose }: Props) {
             />
           </Field>
         ))}
+
+        {!personal && identidadEncontrada && (
+          <p className="rounded-md bg-blue-50 p-3 text-sm text-blue-700">
+            CI encontrada en Pacientes. Nombre, apellido y teléfono se
+            completaron con la identidad existente.
+          </p>
+        )}
 
         <Field
           id="cargo"
@@ -211,10 +269,14 @@ export function PersonalFormModal({ personal, onClose }: Props) {
           />
         </Field>
 
-        <label className="flex items-center gap-2 text-sm text-slate-700">
-          <input type="checkbox" {...register('estado')} />
-          Personal activo
-        </label>
+        <input type="hidden" {...register('estado')} />
+
+        {personal && (
+          <p className="rounded-md bg-slate-50 p-3 text-xs text-slate-600">
+            Estado actual: {personal.estado ? 'Activo' : 'Inactivo'}. Finaliza
+            o reactiva la relación laboral desde el listado de Personal.
+          </p>
+        )}
 
         <p className="text-xs text-slate-500">
           La cuenta de acceso se vincula desde el listado de personal.

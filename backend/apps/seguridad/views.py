@@ -6,6 +6,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.core.api_exceptions import DatosInvalidos
 from apps.core.permissions import (
     EsAdminClinica,
     TieneClinica,
@@ -36,7 +37,6 @@ from .services import (
     cambiar_password,
     cerrar_sesion,
     crear_rol,
-    crear_usuario_clinica,
     desactivar_usuario,
     emitir_tokens,
     eliminar_rol,
@@ -61,6 +61,7 @@ ERRORES_COMUNES = {
             "Conflicto de negocio: usuario_duplicado, email_duplicado, "
             "limite_usuarios, ultimo_administrador, rol_duplicado, "
             "rol_base_protegido, rol_con_asignaciones, rol_ya_asignado."
+            " También puede devolver rol_requerido_por_personal."
         )
     ),
 }
@@ -192,7 +193,9 @@ class UsuarioViewSet(viewsets.ModelViewSet):
     ordering = ("username",)
 
     def get_queryset(self):
-        return queryset_tenant(Usuario, self.request).select_related("paciente")
+        return queryset_tenant(Usuario, self.request).select_related(
+            "paciente", "personal"
+        ).prefetch_related("roles_asignados__rol")
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -203,21 +206,26 @@ class UsuarioViewSet(viewsets.ModelViewSet):
 
     @extend_schema(
         request=UsuarioCreateSerializer,
-        responses={201: UsuarioSerializer, **ERRORES_COMUNES},
-        description="Crea un usuario de la clínica. El password nunca se devuelve.",
+        responses=ERRORES_COMUNES,
+        description=(
+            "La creación general está deshabilitada. Las cuentas se crean "
+            "desde Personal o Pacientes para conservar una identidad "
+            "verificable mediante CI."
+        ),
     )
     def create(self, request, *args, **kwargs):
+        # Conservamos el endpoint con un error estable para clientes antiguos,
+        # pero impedimos crear cuentas huérfanas de Personal/Paciente.
         serializer = UsuarioCreateSerializer(
             data=request.data, context={"request": request}
         )
         serializer.is_valid(raise_exception=True)
-        datos = dict(serializer.validated_data)
-        roles = datos.pop("roles", [])
-        usuario = crear_usuario_clinica(
-            request.user.clinica, datos, roles=roles
-        )
-        return Response(
-            UsuarioSerializer(usuario).data, status=status.HTTP_201_CREATED
+        raise DatosInvalidos(
+            (
+                "Crea la cuenta desde Personal o Pacientes para vincularla "
+                "a una identidad con CI."
+            ),
+            codigo="origen_cuenta_requerido",
         )
 
     def update(self, request, *args, **kwargs):
@@ -290,7 +298,9 @@ class UsuarioRolViewSet(viewsets.ModelViewSet):
     http_method_names = ["get", "post", "delete", "head", "options"]
 
     def get_queryset(self):
-        return queryset_tenant(UsuarioRol, self.request)
+        return queryset_tenant(UsuarioRol, self.request).select_related(
+            "usuario", "rol"
+        )
 
     def create(self, request, *args, **kwargs):
         serializer = UsuarioRolSerializer(

@@ -9,6 +9,8 @@ export interface UsuarioRol {
   rol: number
   rol_nombre: string
   fecha_asignacion: string
+  requerido_por_personal: boolean
+  motivo_proteccion: string | null
 }
 
 export interface AsignarRolInput {

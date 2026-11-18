@@ -21,6 +21,7 @@ class EspecialidadAdmin(TenantAdminMixin, admin.ModelAdmin):
 
 @admin.register(Medico)
 class MedicoAdmin(TenantAdminMixin, admin.ModelAdmin):
+    filter_horizontal = ("especialidades",)
     list_display = (
         "personal",
         "numero_colegiatura",

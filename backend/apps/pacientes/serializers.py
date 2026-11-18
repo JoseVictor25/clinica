@@ -5,6 +5,7 @@ from drf_spectacular.utils import extend_schema_field
 
 from apps.atencion.models import Cita, Consulta, Receta
 from apps.atencion.serializers import MedicamentoRecetadoSerializer
+from apps.seguridad.serializers import CuentaResumenSerializer
 
 from .models import Alergia, Enfermedad, Paciente
 
@@ -13,6 +14,7 @@ class PacienteSerializer(serializers.ModelSerializer):
     """Expone los datos administrativos sin la cuenta vinculada."""
 
     tiene_usuario_vinculado = serializers.SerializerMethodField()
+    cuenta = CuentaResumenSerializer(source="usuario", read_only=True)
 
     class Meta:
         model = Paciente
@@ -28,6 +30,7 @@ class PacienteSerializer(serializers.ModelSerializer):
             "email",
             "estado",
             "tiene_usuario_vinculado",
+            "cuenta",
         )
         read_only_fields = ("id", "clinica")
         validators = []

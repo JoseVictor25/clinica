@@ -128,6 +128,11 @@ class Medico(TenantModel):
         on_delete=models.PROTECT,
         related_name="medicos",
     )
+    especialidades = models.ManyToManyField(
+        Especialidad,
+        blank=True,
+        related_name="medicos_especialistas",
+    )
     numero_colegiatura = models.CharField(max_length=30, unique=True)
     estado = models.BooleanField(default=True)
 

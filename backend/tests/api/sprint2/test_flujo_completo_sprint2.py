@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from apps.atencion.models import Cita, Consulta, EstadoCita, MedicamentoRecetado, Receta
 from apps.pacientes.models import Alergia, Enfermedad, HistoriaClinica, Paciente
-from apps.personal.models import HorarioAtencion
+from apps.personal.models import HorarioAtencion, Personal
 from tests.api.helpers import cliente_autenticado, crear_personal_medico
 
 
@@ -258,6 +258,16 @@ def test_flujo_clinico_completo_hasta_portal(
     )
 
     # S2-12: vinculación idempotente y portal exclusivamente propio.
+    Personal.all_objects.create(
+        clinica=clinica_configurada,
+        usuario=usuario_paciente_a,
+        ci=paciente.ci,
+        nombre=paciente.nombre,
+        apellido=paciente.apellido,
+        telefono=paciente.telefono,
+        cargo="OTRO",
+        fecha_ingreso=FECHA_ATENCION,
+    )
     vinculacion_url = f"/api/v1/pacientes/{paciente_id}/vincular-usuario/"
     payload_vinculacion = {"usuario_id": usuario_paciente_a.pk}
     vinculacion = admin.post(vinculacion_url, payload_vinculacion, format="json")

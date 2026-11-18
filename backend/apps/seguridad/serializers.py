@@ -65,6 +65,7 @@ class UsuarioSerializer(serializers.ModelSerializer):
     )
     roles = serializers.SerializerMethodField()
     paciente_vinculado = serializers.SerializerMethodField()
+    personal_vinculado = serializers.SerializerMethodField()
 
     class Meta:
         model = Usuario
@@ -80,6 +81,7 @@ class UsuarioSerializer(serializers.ModelSerializer):
             "fecha_creacion",
             "roles",
             "paciente_vinculado",
+            "personal_vinculado",
         )
         read_only_fields = fields
 
@@ -92,6 +94,20 @@ class UsuarioSerializer(serializers.ModelSerializer):
         except ObjectDoesNotExist:
             return False
         return True
+
+    def get_personal_vinculado(self, obj) -> bool:
+        try:
+            obj.personal
+        except ObjectDoesNotExist:
+            return False
+        return True
+
+
+class CuentaResumenSerializer(UsuarioSerializer):
+    """Resumen de cuenta anidado en Personal y Paciente."""
+
+    class Meta(UsuarioSerializer.Meta):
+        fields = ("id", "username", "email", "estado", "roles")
 
 
 class UsuarioCreateSerializer(serializers.Serializer):
@@ -142,6 +158,8 @@ class UsuarioRolSerializer(serializers.ModelSerializer):
     rol_nombre = serializers.CharField(source="rol.nombre", read_only=True)
     usuario = TenantRelatedField(Usuario)
     rol = TenantRelatedField(Rol)
+    requerido_por_personal = serializers.SerializerMethodField()
+    motivo_proteccion = serializers.SerializerMethodField()
 
     class Meta:
         model = UsuarioRol
@@ -152,15 +170,40 @@ class UsuarioRolSerializer(serializers.ModelSerializer):
             "rol",
             "rol_nombre",
             "fecha_asignacion",
+            "requerido_por_personal",
+            "motivo_proteccion",
         )
         read_only_fields = (
             "id",
             "usuario_username",
             "rol_nombre",
             "fecha_asignacion",
+            "requerido_por_personal",
+            "motivo_proteccion",
         )
         # La duplicidad se valida en el servicio (rol_ya_asignado -> 409).
         validators = []
+
+    def _personal_que_requiere(self, obj):
+        if not hasattr(obj, "_personal_que_requiere_cache"):
+            from apps.personal.role_policy import personal_activo_que_requiere
+
+            obj._personal_que_requiere_cache = personal_activo_que_requiere(
+                obj.usuario, obj.rol
+            )
+        return obj._personal_que_requiere_cache
+
+    def get_requerido_por_personal(self, obj) -> bool:
+        return self._personal_que_requiere(obj) is not None
+
+    def get_motivo_proteccion(self, obj) -> str | None:
+        personal = self._personal_que_requiere(obj)
+        if personal is None:
+            return None
+        return (
+            f"Este rol es obligatorio mientras el Personal esté activo con "
+            f"cargo {personal.get_cargo_display()}."
+        )
 
 
 class PerfilSerializer(serializers.Serializer):

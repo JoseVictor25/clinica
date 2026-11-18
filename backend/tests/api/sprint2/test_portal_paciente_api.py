@@ -15,6 +15,7 @@ from apps.core.seed_data import ROL_MEDICO, ROL_PACIENTE
 from apps.core.api_exceptions import Conflicto
 from apps.core.tenant import tenant_context
 from apps.pacientes.models import Alergia, Enfermedad, HistoriaClinica, Paciente
+from apps.personal.models import Personal
 from apps.seguridad.models import Rol, UsuarioRol
 from apps.pacientes.vinculacion_services import vincular_usuario_paciente
 from tests.api.helpers import cliente_autenticado, crear_personal_medico, crear_usuario_con_rol
@@ -62,6 +63,11 @@ def portal_contexto(clinica_configurada, paciente_a, usuario_paciente_a, medico_
 
 @pytest.mark.django_db
 def test_admin_vincula_e_idempotencia(admin_a, paciente_a, usuario_paciente_a, suscripcion_amplia):
+    Personal.all_objects.create(
+        clinica=paciente_a.clinica, usuario=usuario_paciente_a, ci=paciente_a.ci,
+        nombre=paciente_a.nombre, apellido=paciente_a.apellido,
+        telefono=paciente_a.telefono, cargo="OTRO", fecha_ingreso=timezone.localdate(),
+    )
     url = f"/api/v1/pacientes/{paciente_a.pk}/vincular-usuario/"
     cliente = cliente_autenticado(admin_a)
     primera = cliente.post(url, {"usuario_id": usuario_paciente_a.pk}, format="json")
@@ -86,15 +92,32 @@ def test_vinculacion_valida_permisos_y_cuerpo(admin_a, recepcionista_a, paciente
 
 
 @pytest.mark.django_db
-def test_vinculacion_rechaza_usuario_sin_rol_e_inactivo(admin_a, paciente_a, clinica_configurada, suscripcion_amplia):
+def test_vinculacion_asigna_rol_y_rechaza_inactivo(admin_a, paciente_a, clinica_configurada, suscripcion_amplia, datos_paciente):
     usuario = crear_usuario_con_rol(clinica_configurada, "sin_rol_portal")
+    Personal.all_objects.create(
+        clinica=clinica_configurada, usuario=usuario, ci=paciente_a.ci,
+        nombre="Ana", apellido="Pérez", telefono="70000001", cargo="OTRO",
+        fecha_ingreso=timezone.localdate(),
+    )
     url = f"/api/v1/pacientes/{paciente_a.pk}/vincular-usuario/"
     respuesta = cliente_autenticado(admin_a).post(url, {"usuario_id": usuario.pk}, format="json")
-    assert respuesta.status_code == 400 and respuesta.data["codigo"] == "usuario_no_valido"
-    rol = Rol.all_objects.get(clinica=clinica_configurada, nombre=ROL_PACIENTE)
-    UsuarioRol.all_objects.create(usuario=usuario, rol=rol)
-    usuario.estado = False; usuario.save(update_fields=["estado"])
-    respuesta = cliente_autenticado(admin_a).post(url, {"usuario_id": usuario.pk}, format="json")
+    assert respuesta.status_code == 200
+    assert UsuarioRol.all_objects.filter(usuario=usuario, rol__nombre=ROL_PACIENTE).exists()
+
+    inactivo = crear_usuario_con_rol(clinica_configurada, "paciente_inactivo", estado=False)
+    otro = Paciente.all_objects.create(
+        clinica=clinica_configurada,
+        **{**datos_paciente, "ci": "PAC-INACTIVO", "email": "inactivo@example.com"},
+    )
+    Personal.all_objects.create(
+        clinica=clinica_configurada, usuario=inactivo, ci=otro.ci,
+        nombre="Otra", apellido="Persona", telefono="70000002", cargo="OTRO",
+        fecha_ingreso=timezone.localdate(),
+    )
+    respuesta = cliente_autenticado(admin_a).post(
+        f"/api/v1/pacientes/{otro.pk}/vincular-usuario/",
+        {"usuario_id": inactivo.pk}, format="json",
+    )
     assert respuesta.status_code == 400 and respuesta.data["codigo"] == "usuario_no_valido"
 
 
@@ -276,13 +299,14 @@ def _vincular_conexion_independiente(clinica, paciente_id, usuario_id, barrera):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_concurrencia_una_cuenta_no_se_vincula_a_dos_pacientes(
-    clinica_configurada, paciente_a, usuario_paciente_a, datos_paciente
+def test_concurrencia_vinculacion_idempotente_del_mismo_paciente(
+    clinica_configurada, paciente_a, usuario_paciente_a
 ):
     assert connection.vendor == "postgresql"
-    otro = Paciente.all_objects.create(
-        clinica=clinica_configurada,
-        **{**datos_paciente, "ci": "PAC-CONC-PORTAL", "email": "conc@example.com"},
+    Personal.all_objects.create(
+        clinica=clinica_configurada, usuario=usuario_paciente_a, ci=paciente_a.ci,
+        nombre="Ana", apellido="Pérez", telefono="70000001", cargo="OTRO",
+        fecha_ingreso=timezone.localdate(),
     )
     barrera = Barrier(2)
     with ThreadPoolExecutor(max_workers=2) as ejecutor:
@@ -290,8 +314,7 @@ def test_concurrencia_una_cuenta_no_se_vincula_a_dos_pacientes(
             lambda paciente_id: _vincular_conexion_independiente(
                 clinica_configurada, paciente_id, usuario_paciente_a.pk, barrera
             ),
-            [paciente_a.pk, otro.pk],
+            [paciente_a.pk, paciente_a.pk],
         ))
-    assert sorted(item[0] for item in resultados) == ["conflicto", "vinculado"]
-    assert ("conflicto", "usuario_ya_vinculado") in resultados
+    assert [item[0] for item in resultados] == ["vinculado", "vinculado"]
     assert Paciente.all_objects.filter(usuario=usuario_paciente_a).count() == 1

@@ -33,10 +33,7 @@ export function UsuariosPage() {
     query,
   } = useListaPaginada('usuarios', usuariosApi.listar)
 
-  // undefined: cerrado; null: crear; objeto: editar.
-  const [formulario, setFormulario] = useState<
-    UsuarioClinica | null | undefined
-  >(undefined)
+  const [formulario, setFormulario] = useState<UsuarioClinica | undefined>()
 
   const [usuarioRoles, setUsuarioRoles] = useState<
     UsuarioClinica | null
@@ -156,19 +153,13 @@ export function UsuariosPage() {
         <h1 className="text-2xl font-semibold text-slate-900">
           Usuarios
         </h1>
-
-        <Button
-          disabled={cambiarEstado.isPending}
-          onClick={() => setFormulario(null)}
-        >
-          Nuevo usuario
-        </Button>
       </div>
 
       <p className="text-sm text-slate-600">
-        Administra los usuarios de tu clínica. La creación y
-        reactivación respetan el límite del plan. Desactivar un
-        usuario conserva su registro.
+        Administra las cuentas, sus roles, estado y seguridad. Para crear
+        una cuenta nueva, hazlo desde Personal o Pacientes; así quedará
+        vinculada desde el inicio a la identidad correcta mediante su CI.
+        La reactivación respeta el límite del plan.
       </p>
 
       <SearchBar

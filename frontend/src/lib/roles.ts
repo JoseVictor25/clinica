@@ -4,7 +4,9 @@ import type { Usuario } from '@/types/auth'
 export const ROL_ADMIN_CLINICA = 'Administrador de clínica'
 export const ROL_RECEPCIONISTA = 'Recepcionista'
 export const ROL_MEDICO = 'Médico'
+export const ROL_ENFERMERIA = 'Enfermería'
 export const ROL_PACIENTE = 'Paciente'
+export const ROL_CONDUCTOR = 'Conductor'
 
 export const esAdminSistema = (u: Usuario) => u.esAdminSistema
 export const esAdminClinica = (u: Usuario) => !u.esAdminSistema && u.roles.includes(ROL_ADMIN_CLINICA)

@@ -68,28 +68,14 @@ def test_flujo_completo_de_negocio(admin_sistema, plan_basico):
     )
     assert suscripcion.status_code == 201, suscripcion.json()
 
-    # 4. Crea un usuario con rol Médico.
+    # 4. Obtiene el rol Médico para crear la cuenta desde Personal.
     rol_medico = Rol.all_objects.get(
         clinica_id=clinica_id, nombre=ROL_MEDICO
     )
-    usuario = admin.post(
-        USUARIOS_URL,
-        {
-            "username": "medico_flujo",
-            "email": "medico_flujo@clinica.local",
-            "password": CLAVE,
-            "roles": [rol_medico.pk],
-        },
-        format="json",
-    )
-    assert usuario.status_code == 201, usuario.json()
-    usuario_id = usuario.json()["id"]
-
-    # 5. Registra el personal y lo vincula al usuario.
+    # 5. Registra Personal y crea su cuenta vinculada.
     personal = admin.post(
         PERSONAL_URL,
         {
-            "usuario": usuario_id,
             "ci": "CI-FLUJO",
             "nombre": "Marta",
             "apellido": "Flujo",
@@ -101,6 +87,18 @@ def test_flujo_completo_de_negocio(admin_sistema, plan_basico):
     )
     assert personal.status_code == 201, personal.json()
     personal_id = personal.json()["id"]
+    cuenta = admin.post(
+        f"{PERSONAL_URL}{personal_id}/crear-cuenta/",
+        {
+            "username": "medico_flujo",
+            "email": "medico_flujo@clinica.local",
+            "password": CLAVE,
+            "roles": [rol_medico.pk],
+        },
+        format="json",
+    )
+    assert cuenta.status_code == 201, cuenta.json()
+    usuario_id = cuenta.json()["usuario"]
 
     # 6. Registra el médico con una especialidad base.
     especialidad = Especialidad.all_objects.filter(

@@ -2,9 +2,15 @@
 
 from django.db import IntegrityError, transaction
 
-from apps.core.api_exceptions import Conflicto, DatosInvalidos
+from apps.core.api_exceptions import Conflicto, DatosInvalidos, RecursoNoEncontrado
+from apps.core.identidad import CAMPOS_IDENTIDAD, copiar_identidad
+from apps.core.seed_data import ROL_PACIENTE
+from apps.pacientes.models import Paciente
+from apps.seguridad.models import Rol, Usuario, UsuarioRol
+from apps.seguridad.services import actualizar_usuario_clinica
 
 from .models import Especialidad, HorarioAtencion, Medico, Personal
+from .role_policy import garantizar_rol_obligatorio, retirar_rol_del_cargo
 
 
 def crear_personal(clinica, datos):
@@ -15,6 +21,13 @@ def crear_personal(clinica, datos):
         )
     try:
         with transaction.atomic():
+            paciente = (
+                Paciente.all_objects.select_for_update()
+                .filter(clinica=clinica, ci=datos["ci"])
+                .first()
+            )
+            if paciente is not None:
+                copiar_identidad(datos, paciente)
             return Personal.all_objects.create(clinica=clinica, **datos)
     except IntegrityError as exc:
         raise Conflicto(
@@ -24,41 +37,223 @@ def crear_personal(clinica, datos):
 
 
 def actualizar_personal(personal, datos):
-    ci = datos.get("ci", personal.ci)
-    if Personal.all_objects.filter(clinica=personal.clinica, ci=ci).exclude(
-        pk=personal.pk
-    ).exists():
-        raise Conflicto(
-            "Ya existe personal con esa CI en la clínica.",
-            codigo="ci_duplicada",
+    with transaction.atomic():
+        bloqueado = (
+            Personal.all_objects.select_for_update()
+            .select_related("clinica")
+            .get(pk=personal.pk)
         )
-    for campo, valor in datos.items():
-        setattr(personal, campo, valor)
-    personal.save()
-    return personal
+        ci = datos.get("ci", bloqueado.ci)
+        if ci != bloqueado.ci:
+            raise DatosInvalidos(
+                "La CI no puede modificarse porque identifica a la persona.",
+                codigo="ci_no_modificable",
+                detalles={"ci": ["La CI no puede modificarse."]},
+            )
+        if Personal.all_objects.filter(
+            clinica=bloqueado.clinica, ci=ci
+        ).exclude(pk=bloqueado.pk).exists():
+            raise Conflicto(
+                "Ya existe personal con esa CI en la clínica.",
+                codigo="ci_duplicada",
+            )
+
+        cargo_nuevo = datos.get("cargo", bloqueado.cargo)
+        estado_nuevo = datos.get("estado", bloqueado.estado)
+        cambio_cargo = cargo_nuevo != bloqueado.cargo
+        reactivando = not bloqueado.estado and estado_nuevo
+        desactivando = bloqueado.estado and not estado_nuevo
+        if desactivando:
+            _finalizar_bloqueado(bloqueado)
+            for campo, valor in datos.items():
+                if campo != "estado":
+                    setattr(bloqueado, campo, valor)
+            bloqueado.save()
+            _sincronizar_identidad_con_paciente(bloqueado)
+            return bloqueado
+        if bloqueado.usuario_id and estado_nuevo and (cambio_cargo or reactivando):
+            usuario = Usuario.all_objects.select_for_update().get(
+                pk=bloqueado.usuario_id
+            )
+            rol_nuevo = garantizar_rol_obligatorio(
+                clinica=bloqueado.clinica,
+                cargo=cargo_nuevo,
+                usuario=usuario,
+                bloquear=True,
+            )
+            if rol_nuevo is not None and not usuario.estado:
+                actualizar_usuario_clinica(usuario, {"estado": True})
+            if cambio_cargo:
+                retirar_rol_del_cargo(
+                    clinica=bloqueado.clinica,
+                    cargo=bloqueado.cargo,
+                    usuario=usuario,
+                )
+                _desactivar_usuario_sin_roles_activos(usuario)
+        elif bloqueado.usuario_id and cambio_cargo and not estado_nuevo:
+            usuario = Usuario.all_objects.select_for_update().get(
+                pk=bloqueado.usuario_id
+            )
+            retirar_rol_del_cargo(
+                clinica=bloqueado.clinica,
+                cargo=bloqueado.cargo,
+                usuario=usuario,
+            )
+            _desactivar_usuario_sin_roles_activos(usuario)
+
+        for campo, valor in datos.items():
+            setattr(bloqueado, campo, valor)
+        bloqueado.save()
+        _sincronizar_identidad_con_paciente(bloqueado)
+        if reactivando and cargo_nuevo == "MEDICO":
+            Medico.all_objects.filter(personal=bloqueado).update(estado=True)
+        return bloqueado
+
+
+def _sincronizar_identidad_con_paciente(personal):
+    paciente = (
+        Paciente.all_objects.select_for_update()
+        .filter(clinica=personal.clinica, ci=personal.ci)
+        .first()
+    )
+    if paciente is None:
+        return
+    cambios = {
+        campo: getattr(personal, campo)
+        for campo in CAMPOS_IDENTIDAD
+        if getattr(paciente, campo) != getattr(personal, campo)
+    }
+    if cambios:
+        Paciente.all_objects.filter(pk=paciente.pk).update(**cambios)
+
+
+def _desactivar_usuario_sin_roles_activos(usuario):
+    paciente_activo = Paciente.all_objects.filter(
+        usuario=usuario,
+        estado=True,
+    ).exists()
+    if paciente_activo:
+        rol_paciente = Rol.all_objects.filter(
+            clinica=usuario.clinica,
+            nombre=ROL_PACIENTE,
+            estado=True,
+        ).first()
+        if rol_paciente is not None:
+            UsuarioRol.all_objects.get_or_create(
+                usuario=usuario,
+                rol=rol_paciente,
+            )
+    tiene_roles_activos = UsuarioRol.all_objects.filter(
+        usuario=usuario,
+        rol__estado=True,
+    ).exists()
+    if not tiene_roles_activos and usuario.estado:
+        usuario.estado = False
+        usuario.save(update_fields=["estado"])
+
+
+def _finalizar_bloqueado(bloqueado):
+    usuario = None
+    if bloqueado.usuario_id:
+        usuario = Usuario.all_objects.select_for_update().get(
+            pk=bloqueado.usuario_id
+        )
+
+    bloqueado.estado = False
+    bloqueado.save(update_fields=["estado"])
+    Medico.all_objects.select_for_update().filter(
+        personal=bloqueado
+    ).update(estado=False)
+
+    if usuario is not None:
+        retirar_rol_del_cargo(
+            clinica=bloqueado.clinica,
+            cargo=bloqueado.cargo,
+            usuario=usuario,
+        )
+        _desactivar_usuario_sin_roles_activos(usuario)
+    return bloqueado
+
+
+def finalizar_relacion_laboral(personal):
+    """Finaliza el acceso laboral conservando identidad e historial."""
+    with transaction.atomic():
+        bloqueado = (
+            Personal.all_objects.select_for_update()
+            .select_related("clinica")
+            .get(pk=personal.pk)
+        )
+        return _finalizar_bloqueado(bloqueado)
 
 
 def vincular_usuario(personal, usuario):
-    if usuario is None:
-        personal.usuario = None
-        personal.save(update_fields=["usuario"])
-        return personal
+    """Vincula una cuenta cuya identidad ya fue verificada por Paciente."""
+    with transaction.atomic():
+        bloqueado = Personal.all_objects.select_for_update().get(pk=personal.pk)
+        if usuario is None:
+            raise Conflicto(
+                "El vínculo entre Personal y Usuario es permanente. Usa Finalizar relación para una baja laboral.",
+                codigo="vinculo_personal_permanente",
+            )
 
-    if usuario.clinica_id != personal.clinica_id:
-        raise Conflicto(
-            "El usuario debe pertenecer a la misma clínica.",
-            codigo="usuario_ajeno",
+        usuario_bloqueado = (
+            Usuario.all_objects.select_for_update()
+            .filter(pk=usuario.pk, clinica=bloqueado.clinica)
+            .first()
         )
-    if Personal.all_objects.filter(usuario=usuario).exclude(
-        pk=personal.pk
-    ).exists():
-        raise Conflicto(
-            "El usuario ya está vinculado a otro registro de personal.",
-            codigo="usuario_ya_vinculado",
-        )
-    personal.usuario = usuario
-    personal.save(update_fields=["usuario"])
-    return personal
+        if usuario_bloqueado is None:
+            raise RecursoNoEncontrado("Usuario no encontrado.")
+
+        # Los vínculos creados antes de esta regla siguen siendo idempotentes.
+        if bloqueado.usuario_id == usuario_bloqueado.pk:
+            if bloqueado.estado:
+                garantizar_rol_obligatorio(
+                    clinica=bloqueado.clinica,
+                    cargo=bloqueado.cargo,
+                    usuario=usuario_bloqueado,
+                    bloquear=True,
+                )
+            return bloqueado
+        if bloqueado.usuario_id is not None:
+            raise Conflicto(
+                "El personal ya está vinculado a otra cuenta.",
+                codigo="personal_ya_vinculado",
+            )
+        if Personal.all_objects.filter(usuario=usuario_bloqueado).exclude(
+            pk=bloqueado.pk
+        ).exists():
+            raise Conflicto(
+                "El usuario ya está vinculado a otro registro de personal.",
+                codigo="usuario_ya_vinculado",
+            )
+
+        identidad = Paciente.all_objects.filter(
+            clinica=bloqueado.clinica,
+            ci=bloqueado.ci,
+            usuario=usuario_bloqueado,
+        ).exists()
+        if not identidad:
+            raise Conflicto(
+                "La cuenta debe estar vinculada a un paciente con la misma CI.",
+                codigo="identidad_no_coincide",
+            )
+
+        if bloqueado.estado:
+            if not usuario_bloqueado.estado:
+                actualizar_usuario_clinica(
+                    usuario_bloqueado,
+                    {"estado": True},
+                )
+            garantizar_rol_obligatorio(
+                clinica=bloqueado.clinica,
+                cargo=bloqueado.cargo,
+                usuario=usuario_bloqueado,
+                bloquear=True,
+            )
+
+        bloqueado.usuario = usuario_bloqueado
+        bloqueado.save(update_fields=["usuario"])
+        return bloqueado
 
 
 def _validar_personal_y_especialidad(clinica, personal, especialidad):
@@ -74,10 +269,26 @@ def _validar_personal_y_especialidad(clinica, personal, especialidad):
         )
 
 
+def _normalizar_especialidades(clinica, principal, especialidades):
+    asignadas = {especialidad.pk: especialidad for especialidad in especialidades}
+    asignadas[principal.pk] = principal
+    for especialidad in asignadas.values():
+        if especialidad.clinica_id != clinica.pk:
+            raise Conflicto(
+                "Una especialidad no pertenece a la clínica.",
+                codigo="especialidad_ajena",
+            )
+    return list(asignadas.values())
+
+
 def crear_medico(clinica, datos):
+    especialidades = datos.pop("especialidades", [])
     personal = datos["personal"]
     especialidad = datos["especialidad"]
     _validar_personal_y_especialidad(clinica, personal, especialidad)
+    especialidades = _normalizar_especialidades(
+        clinica, especialidad, especialidades
+    )
 
     if Medico.all_objects.filter(personal=personal).exists():
         raise Conflicto(
@@ -94,7 +305,9 @@ def crear_medico(clinica, datos):
 
     try:
         with transaction.atomic():
-            return Medico.all_objects.create(clinica=clinica, **datos)
+            medico = Medico.all_objects.create(clinica=clinica, **datos)
+            medico.especialidades.set(especialidades)
+            return medico
     except IntegrityError as exc:
         raise Conflicto(
             "La colegiatura o el personal ya están registrados.",
@@ -103,9 +316,15 @@ def crear_medico(clinica, datos):
 
 
 def actualizar_medico(medico, datos):
+    especialidades = datos.pop("especialidades", None)
     personal = datos.get("personal", medico.personal)
     especialidad = datos.get("especialidad", medico.especialidad)
     _validar_personal_y_especialidad(medico.clinica, personal, especialidad)
+    if especialidades is None:
+        especialidades = list(medico.especialidades.all())
+    especialidades = _normalizar_especialidades(
+        medico.clinica, especialidad, especialidades
+    )
 
     if Medico.all_objects.filter(personal=personal).exclude(
         pk=medico.pk
@@ -123,10 +342,12 @@ def actualizar_medico(medico, datos):
             codigo="colegiatura_duplicada",
         )
 
-    for campo, valor in datos.items():
-        setattr(medico, campo, valor)
-    medico.save()
-    return medico
+    with transaction.atomic():
+        for campo, valor in datos.items():
+            setattr(medico, campo, valor)
+        medico.save()
+        medico.especialidades.set(especialidades)
+        return medico
 
 
 def _validar_horas(hora_inicio, hora_fin):

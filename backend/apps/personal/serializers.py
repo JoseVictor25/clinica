@@ -3,18 +3,17 @@
 from rest_framework import serializers
 
 from apps.core.fields import TenantRelatedField
-from apps.seguridad.models import Usuario
+from apps.seguridad.serializers import CuentaResumenSerializer
 
 from .models import Especialidad, HorarioAtencion, Medico, Personal
 
 
 class PersonalSerializer(serializers.ModelSerializer):
-    usuario = TenantRelatedField(
-        Usuario, required=False, allow_null=True
-    )
+    usuario = serializers.PrimaryKeyRelatedField(read_only=True)
     clinica_nombre = serializers.CharField(
         source="clinica.nombre", read_only=True
     )
+    cuenta = CuentaResumenSerializer(source="usuario", read_only=True)
 
     class Meta:
         model = Personal
@@ -23,6 +22,7 @@ class PersonalSerializer(serializers.ModelSerializer):
             "clinica",
             "clinica_nombre",
             "usuario",
+            "cuenta",
             "ci",
             "nombre",
             "apellido",
@@ -55,6 +55,9 @@ class EspecialidadSerializer(serializers.ModelSerializer):
 class MedicoSerializer(serializers.ModelSerializer):
     personal = TenantRelatedField(Personal)
     especialidad = TenantRelatedField(Especialidad)
+    especialidades = TenantRelatedField(
+        Especialidad, many=True, required=False
+    )
     # Se declara sin UniqueValidator para que el servicio devuelva 409
     # (colegiatura_duplicada) en lugar de un 400 genérico.
     numero_colegiatura = serializers.CharField(max_length=30)
@@ -62,6 +65,7 @@ class MedicoSerializer(serializers.ModelSerializer):
     especialidad_nombre = serializers.CharField(
         source="especialidad.nombre", read_only=True
     )
+    especialidades_nombres = serializers.SerializerMethodField()
     clinica_nombre = serializers.CharField(
         source="clinica.nombre", read_only=True
     )
@@ -76,6 +80,8 @@ class MedicoSerializer(serializers.ModelSerializer):
             "personal_nombre",
             "especialidad",
             "especialidad_nombre",
+            "especialidades",
+            "especialidades_nombres",
             "numero_colegiatura",
             "estado",
         )
@@ -83,6 +89,9 @@ class MedicoSerializer(serializers.ModelSerializer):
 
     def get_personal_nombre(self, obj) -> str:
         return str(obj.personal)
+
+    def get_especialidades_nombres(self, obj) -> list[str]:
+        return [especialidad.nombre for especialidad in obj.especialidades.all()]
 
 
 class HorarioAtencionSerializer(serializers.ModelSerializer):

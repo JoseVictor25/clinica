@@ -36,13 +36,18 @@ export function MedicosPage() {
           !referencias.data.medicos.some((medico) => medico.personal === persona.id)).map((persona) => ({
             valor: String(persona.id), etiqueta: `${persona.apellido}, ${persona.nombre} — ${persona.ci}${persona.estado ? '' : ' (inactivo)'}`,
           })) ?? (registro ? [{ valor: String(registro.personal), etiqueta: registro.personal_nombre }] : []) },
-      { nombre: 'especialidad', etiqueta: 'Especialidad', tipo: 'select', obligatorio: true,
+      { nombre: 'especialidad', etiqueta: 'Especialidad principal', tipo: 'select', obligatorio: true,
         opciones: referencias.data?.especialidades.map((especialidad) => ({ valor: String(especialidad.id), etiqueta: `${especialidad.nombre}${especialidad.estado ? '' : ' (inactiva)'}` }))
           ?? (registro ? [{ valor: String(registro.especialidad), etiqueta: registro.especialidad_nombre }] : []) },
+      { nombre: 'especialidades', etiqueta: 'Especialidades asignadas', tipo: 'multiselect',
+        ayuda: 'Mantén Ctrl presionado para seleccionar varias. La especialidad principal se incluye automáticamente.',
+        opciones: referencias.data?.especialidades.map((especialidad) => ({ valor: String(especialidad.id), etiqueta: `${especialidad.nombre}${especialidad.estado ? '' : ' (inactiva)'}` }))
+          ?? (registro ? registro.especialidades.map((id, indice) => ({ valor: String(id), etiqueta: registro.especialidades_nombres[indice] ?? String(id) })) : []) },
       { nombre: 'numero_colegiatura', etiqueta: 'Número de colegiatura', obligatorio: true, maxLength: 30 },
       { nombre: 'estado', etiqueta: 'Médico activo', tipo: 'checkbox' },
     ],
     iniciales: (registro) => ({ personal: registro ? String(registro.personal) : '', especialidad: registro ? String(registro.especialidad) : '',
+      especialidades: registro ? Array.from(new Set([registro.especialidad, ...registro.especialidades])).map(String) : [],
       numero_colegiatura: registro?.numero_colegiatura ?? '', estado: registro?.estado ?? true }),
     validar: (valores) => {
       const errores: Record<string, string> = {}
@@ -50,7 +55,8 @@ export function MedicosPage() {
       return errores
     },
     guardar: (valores, registro) => {
-      const datos = { personal: Number(valores.personal), especialidad: Number(valores.especialidad),
+      const especialidades = Array.isArray(valores.especialidades) ? valores.especialidades.map(Number) : []
+      const datos = { personal: Number(valores.personal), especialidad: Number(valores.especialidad), especialidades,
         numero_colegiatura: String(valores.numero_colegiatura).trim(), estado: valores.estado === true }
       return registro ? medicosApi.actualizar(registro.id, datos) : medicosApi.crear(datos)
     },
@@ -60,7 +66,8 @@ export function MedicosPage() {
     filtros: admin ? [{ nombre: 'especialidad', etiqueta: 'Especialidad', opciones: referencias.data?.especialidades.map((especialidad) => ({ valor: String(especialidad.id), etiqueta: especialidad.nombre })) ?? [] }] : [],
     columnas: [
       { encabezado: 'Médico', celda: (registro) => registro.personal_nombre },
-      { encabezado: 'Especialidad', celda: (registro) => registro.especialidad_nombre },
+      { encabezado: 'Especialidades', celda: (registro) => registro.especialidades_nombres.length > 0
+        ? registro.especialidades_nombres.join(', ') : registro.especialidad_nombre },
       { encabezado: 'Colegiatura', celda: (registro) => registro.numero_colegiatura },
       { encabezado: 'Estado', celda: (registro) => registro.estado ? 'Activo' : 'Inactivo' },
     ],

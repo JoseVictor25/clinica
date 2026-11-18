@@ -1,5 +1,7 @@
 import type { ListParams, Paginated } from '@/types/api'
+import type { IdentidadCompartida } from '@/types/identidad'
 import { api } from '../client'
+import type { CuentaResumen, UsuarioClinica } from './usuarios'
 
 export type CargoPersonal =
   | 'MEDICO'
@@ -24,6 +26,7 @@ export interface Personal {
   clinica: number
   clinica_nombre: string
   usuario: number | null
+  cuenta: CuentaResumen | null
   ci: string
   nombre: string
   apellido: string
@@ -44,7 +47,22 @@ export interface PersonalInput {
   estado: boolean
 }
 
+export interface CrearCuentaPersonalInput {
+  username: string
+  email: string
+  password: string
+  roles: number[]
+}
+
 export const personalApi = {
+  async identidadPorCi(ci: string): Promise<IdentidadCompartida> {
+    const { data } = await api.get<IdentidadCompartida>(
+      '/personal/identidad-por-ci/',
+      { params: { ci } },
+    )
+    return data
+  },
+
   async listar(
     params: ListParams = {},
   ): Promise<Paginated<Personal>> {
@@ -85,12 +103,16 @@ export const personalApi = {
     return data
   },
 
-  /** Elimina el registro; el backend impide hacerlo si tiene médico asociado. */
-  async eliminar(id: number): Promise<void> {
+  /** Finaliza la relación laboral sin eliminar identidad ni historial. */
+  async finalizarRelacion(id: number): Promise<void> {
     await api.delete(`/personal/${id}/`)
   },
 
-  /** Enviar null desvincula la cuenta actual. */
+  async reactivar(id: number): Promise<Personal> {
+    return personalApi.actualizar(id, { estado: true })
+  },
+
+  /** Enviar null corrige un vínculo erróneo sin actividad profesional. */
   async vincularUsuario(
     personalId: number,
     usuarioId: number | null,
@@ -100,6 +122,28 @@ export const personalApi = {
       { usuario_id: usuarioId },
     )
 
+    return data
+  },
+
+  async crearCuenta(
+    personalId: number,
+    datos: CrearCuentaPersonalInput,
+  ): Promise<Personal> {
+    const { data } = await api.post<Personal>(
+      `/personal/${personalId}/crear-cuenta/`,
+      datos,
+    )
+    return data
+  },
+
+  async cuentasElegibles(
+    personalId: number,
+    params: ListParams = {},
+  ): Promise<Paginated<UsuarioClinica>> {
+    const { data } = await api.get<Paginated<UsuarioClinica>>(
+      `/personal/${personalId}/cuentas-elegibles/`,
+      { params },
+    )
     return data
   },
 

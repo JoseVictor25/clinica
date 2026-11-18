@@ -14,7 +14,13 @@ export interface UsuarioClinica {
   /** Nombres de los roles activos. */
   roles: string[]
   paciente_vinculado: boolean
+  personal_vinculado: boolean
 }
+
+export type CuentaResumen = Pick<
+  UsuarioClinica,
+  'id' | 'username' | 'email' | 'estado' | 'roles'
+>
 
 export interface CrearUsuarioInput {
   username: string

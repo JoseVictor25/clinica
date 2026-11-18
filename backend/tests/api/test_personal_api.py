@@ -5,8 +5,11 @@ from datetime import date, time
 import pytest
 from django.utils import timezone
 
+from apps.atencion.models import Cita, Consulta, Receta
 from apps.core.seed_data import ROL_MEDICO
 from apps.personal.models import Especialidad, HorarioAtencion, Medico, Personal
+from apps.pacientes.models import Paciente
+from apps.seguridad.models import UsuarioRol
 
 from .helpers import (
     cliente_autenticado,
@@ -75,18 +78,96 @@ def test_personal_ci_duplicada(admin_a, suscripcion_amplia):
 
 
 @pytest.mark.django_db
-def test_personal_no_se_elimina_si_tiene_medico(
+def test_finalizar_medico_conserva_identidad_e_historial(
     admin_a, clinica_configurada, suscripcion_amplia
 ):
-    usuario = crear_usuario_con_rol(clinica_configurada, "medico_vinculado")
-    personal, _ = crear_personal_medico(clinica_configurada, usuario)
+    usuario = crear_usuario_con_rol(
+        clinica_configurada, "medico_vinculado", ROL_MEDICO
+    )
+    personal, medico = crear_personal_medico(clinica_configurada, usuario)
+    paciente = Paciente.all_objects.create(
+        clinica=clinica_configurada,
+        ci="CI-HISTORIAL-BAJA",
+        nombre="Paciente",
+        apellido="Historial",
+        sexo="F",
+        fecha_nacimiento=date(1990, 1, 1),
+        telefono="70000002",
+    )
+    cita = Cita.all_objects.create(
+        clinica=clinica_configurada,
+        medico=medico,
+        paciente=paciente,
+        fecha=timezone.localdate(),
+        hora=time(9, 0),
+        motivo="Control",
+    )
+    consulta = Consulta.all_objects.create(
+        clinica=clinica_configurada,
+        cita=cita,
+        medico=medico,
+        paciente=paciente,
+        motivo="Control",
+        observacion="Sin novedad",
+        diagnostico="Estable",
+    )
+    receta = Receta.all_objects.create(
+        consulta=consulta,
+        indicaciones="Conservar seguimiento",
+    )
 
     respuesta = cliente_autenticado(admin_a).delete(
         f"{PERSONAL_URL}{personal.pk}/"
     )
 
-    assert respuesta.status_code == 409
-    assert respuesta.json()["codigo"] == "personal_con_medico"
+    assert respuesta.status_code == 204
+    personal.refresh_from_db()
+    medico.refresh_from_db()
+    usuario.refresh_from_db()
+    assert personal.estado is False
+    assert personal.usuario_id == usuario.pk
+    assert medico.estado is False
+    assert usuario.estado is False
+    assert Personal.all_objects.filter(pk=personal.pk).exists()
+    assert Medico.all_objects.filter(pk=medico.pk).exists()
+    assert Cita.all_objects.filter(pk=cita.pk, medico=medico).exists()
+    assert Consulta.all_objects.filter(pk=consulta.pk, medico=medico).exists()
+    assert Receta.all_objects.filter(pk=receta.pk, consulta=consulta).exists()
+
+
+@pytest.mark.django_db
+def test_reactivar_personal_restaura_cuenta_rol_y_medico(
+    admin_a, clinica_configurada, suscripcion_amplia
+):
+    usuario = crear_usuario_con_rol(
+        clinica_configurada, "medico_reactivado", ROL_MEDICO
+    )
+    personal, medico = crear_personal_medico(
+        clinica_configurada,
+        usuario,
+        ci="CI-REACTIVAR",
+        colegiatura="COL-REACTIVAR",
+    )
+    cliente = cliente_autenticado(admin_a)
+    assert cliente.delete(f"{PERSONAL_URL}{personal.pk}/").status_code == 204
+
+    respuesta = cliente.patch(
+        f"{PERSONAL_URL}{personal.pk}/",
+        {"estado": True},
+        format="json",
+    )
+
+    assert respuesta.status_code == 200, respuesta.json()
+    personal.refresh_from_db()
+    medico.refresh_from_db()
+    usuario.refresh_from_db()
+    assert personal.estado is True
+    assert medico.estado is True
+    assert usuario.estado is True
+    assert UsuarioRol.all_objects.filter(
+        usuario=usuario,
+        rol__nombre=ROL_MEDICO,
+    ).exists()
 
 
 @pytest.mark.django_db
@@ -99,7 +180,7 @@ def test_medico_no_puede_crear_personal(medico_a, suscripcion_amplia):
 
 
 @pytest.mark.django_db
-def test_vincular_y_desvincular_usuario_de_personal(
+def test_vinculo_usuario_personal_es_permanente(
     admin_a, clinica_configurada, suscripcion_amplia
 ):
     personal = Personal.all_objects.create(
@@ -107,6 +188,16 @@ def test_vincular_y_desvincular_usuario_de_personal(
         **_payload_personal(),
     )
     usuario = crear_usuario_con_rol(clinica_configurada, "a_vincular")
+    Paciente.all_objects.create(
+        clinica=clinica_configurada,
+        usuario=usuario,
+        ci=personal.ci,
+        nombre="Ana",
+        apellido="Pérez",
+        sexo="F",
+        fecha_nacimiento=date(1990, 1, 1),
+        telefono="70000001",
+    )
     autenticado = cliente_autenticado(admin_a)
 
     vinculado = autenticado.post(
@@ -122,8 +213,10 @@ def test_vincular_y_desvincular_usuario_de_personal(
         {"usuario_id": None},
         format="json",
     )
-    assert desvinculado.status_code == 200
-    assert desvinculado.json()["usuario"] is None
+    assert desvinculado.status_code == 409
+    assert desvinculado.json()["codigo"] == "vinculo_personal_permanente"
+    personal.refresh_from_db()
+    assert personal.usuario_id == usuario.pk
 
 
 @pytest.mark.django_db
@@ -178,12 +271,38 @@ def test_especialidad_crud_y_duplicada(admin_a, suscripcion_amplia):
 
 
 @pytest.mark.django_db
-def test_medico_puede_ver_especialidades_pero_no_crearlas(
-    medico_a, suscripcion_amplia
+def test_medico_solo_ve_sus_especialidades_asignadas(
+    medico_a, clinica_configurada, suscripcion_amplia
 ):
+    _, medico = crear_personal_medico(
+        clinica_configurada,
+        medico_a,
+        ci="CI-ESP-001",
+        colegiatura="COL-ESP-001",
+    )
+    adicional = Especialidad.all_objects.create(
+        clinica=clinica_configurada,
+        nombre="Medicina interna",
+        descripcion="Especialidad adicional.",
+    )
+    no_asignada = Especialidad.all_objects.create(
+        clinica=clinica_configurada,
+        nombre="Oncología",
+        descripcion="No asignada al médico.",
+    )
+    medico.especialidades.add(medico.especialidad, adicional)
     autenticado = cliente_autenticado(medico_a)
 
-    assert autenticado.get(ESPECIALIDADES_URL).status_code == 200
+    respuesta = autenticado.get(ESPECIALIDADES_URL)
+    assert respuesta.status_code == 200
+    assert {item["id"] for item in respuesta.json()["results"]} == {
+        medico.especialidad_id,
+        adicional.pk,
+    }
+    assert (
+        autenticado.get(f"{ESPECIALIDADES_URL}{no_asignada.pk}/").status_code
+        == 404
+    )
     assert (
         autenticado.post(
             ESPECIALIDADES_URL, {"nombre": "Nueva"}, format="json"
@@ -218,12 +337,18 @@ def test_admin_crea_medico(admin_a, clinica_configurada, suscripcion_amplia):
     especialidad = Especialidad.all_objects.filter(
         clinica=clinica_configurada
     ).first()
+    adicional = Especialidad.all_objects.create(
+        clinica=clinica_configurada,
+        nombre="Medicina deportiva",
+        descripcion="Especialidad adicional.",
+    )
 
     respuesta = cliente_autenticado(admin_a).post(
         MEDICOS_URL,
         {
             "personal": personal.pk,
             "especialidad": especialidad.pk,
+            "especialidades": [especialidad.pk, adicional.pk],
             "numero_colegiatura": "COL-100",
         },
         format="json",
@@ -231,6 +356,10 @@ def test_admin_crea_medico(admin_a, clinica_configurada, suscripcion_amplia):
 
     assert respuesta.status_code == 201
     assert respuesta.json()["clinica"] == admin_a.clinica_id
+    assert set(respuesta.json()["especialidades"]) == {
+        especialidad.pk,
+        adicional.pk,
+    }
     assert Medico.all_objects.filter(
         numero_colegiatura="COL-100"
     ).exists()

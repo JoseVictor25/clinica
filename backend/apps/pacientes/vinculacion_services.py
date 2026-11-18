@@ -3,8 +3,9 @@
 from django.db import transaction
 
 from apps.core.api_exceptions import Conflicto, DatosInvalidos, RecursoNoEncontrado
-from apps.core.seed_data import ROL_PACIENTE
-from apps.seguridad.models import Usuario, UsuarioRol
+from apps.personal.models import Personal
+from apps.seguridad.cuentas_services import asegurar_rol_paciente
+from apps.seguridad.models import Usuario
 
 from .models import Paciente
 
@@ -32,15 +33,9 @@ def vincular_usuario_paciente(*, clinica, paciente_id, usuario_id):
         if not paciente.estado:
             raise Conflicto("El paciente está inactivo.", codigo="paciente_inactivo")
 
-        rol_valido = UsuarioRol.all_objects.filter(
-            usuario=usuario,
-            rol__clinica=clinica,
-            rol__nombre=ROL_PACIENTE,
-            rol__estado=True,
-        ).exists()
-        if not usuario.estado or not rol_valido:
+        if not usuario.estado:
             raise DatosInvalidos(
-                "El usuario debe estar activo y tener el rol Paciente habilitado.",
+                "El usuario debe estar activo.",
                 codigo="usuario_no_valido",
             )
 
@@ -58,6 +53,19 @@ def vincular_usuario_paciente(*, clinica, paciente_id, usuario_id):
                 codigo="usuario_ya_vinculado",
             )
 
+        identidad = Personal.all_objects.filter(
+            clinica=clinica,
+            ci=paciente.ci,
+            usuario=usuario,
+        ).exists()
+        if not identidad:
+            raise Conflicto(
+                "La cuenta debe estar vinculada a personal con la misma CI.",
+                codigo="identidad_no_coincide",
+            )
+
+        asegurar_rol_paciente(usuario, clinica)
         paciente.usuario = usuario
-        paciente.save(update_fields=["usuario"])
+        paciente.email = usuario.email
+        paciente.save(update_fields=["usuario", "email"])
         return paciente

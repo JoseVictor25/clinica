@@ -14,6 +14,11 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import SAFE_METHODS
 from rest_framework.response import Response
 
+from apps.core.identidad import (
+    ConsultaIdentidadSerializer,
+    IdentidadCompartidaSerializer,
+    respuesta_identidad,
+)
 from apps.core.permissions import (
     EsAdminClinicaORecepcionista,
     EsAdminClinica,
@@ -25,6 +30,16 @@ from apps.core.permissions import (
     TieneSuscripcionVigente,
 )
 from apps.core.querysets import queryset_tenant
+from apps.personal.models import Personal
+from apps.seguridad.cuentas_serializers import (
+    BuscarCuentasElegiblesSerializer,
+    CrearCuentaPacienteSerializer,
+)
+from apps.seguridad.cuentas_services import (
+    crear_cuenta_para_paciente,
+    cuentas_elegibles_para_paciente,
+)
+from apps.seguridad.serializers import UsuarioSerializer
 
 from .models import (
     Alergia,
@@ -220,7 +235,8 @@ class PacienteViewSet(viewsets.ModelViewSet):
     ordering = ("apellido", "nombre")
 
     def get_permissions(self):
-        permiso_rol = EsAdminClinica if self.action == "vincular_usuario" else (
+        acciones_cuenta = {"vincular_usuario", "crear_cuenta", "cuentas_elegibles"}
+        permiso_rol = EsAdminClinica if self.action in acciones_cuenta else (
             PuedeConsultarPacientes
             if self.request.method in SAFE_METHODS
             else EsAdminClinicaORecepcionista
@@ -232,7 +248,9 @@ class PacienteViewSet(viewsets.ModelViewSet):
         ]
 
     def get_queryset(self):
-        queryset = queryset_tenant(Paciente, self.request)
+        queryset = queryset_tenant(Paciente, self.request).select_related(
+            "usuario"
+        ).prefetch_related("usuario__roles_asignados__rol")
 
         estado = self.request.query_params.get("estado")
         if estado is not None:
@@ -258,6 +276,28 @@ class PacienteViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(sexo=sexo)
 
         return queryset
+
+    @extend_schema(
+        tags=["Pacientes"],
+        parameters=[ConsultaIdentidadSerializer],
+        responses={200: IdentidadCompartidaSerializer},
+        description=(
+            "Busca en Personal la identidad de la misma clínica con CI exacta."
+        ),
+    )
+    @action(detail=False, methods=["get"], url_path="identidad-por-ci")
+    def identidad_por_ci(self, request):
+        parametros = ConsultaIdentidadSerializer(data=request.query_params)
+        parametros.is_valid(raise_exception=True)
+        personal = (
+            Personal.all_objects.select_related("usuario")
+            .filter(
+                clinica=request.user.clinica,
+                ci=parametros.validated_data["ci"],
+            )
+            .first()
+        )
+        return Response(respuesta_identidad(personal, "PERSONAL"))
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -320,6 +360,49 @@ class PacienteViewSet(viewsets.ModelViewSet):
             "paciente_id": paciente.pk,
             "usuario_id": paciente.usuario_id,
         })
+
+    @extend_schema(
+        tags=["Pacientes"],
+        request=CrearCuentaPacienteSerializer,
+        responses={201: PacienteSerializer, **ERRORES},
+        description="Crea una cuenta con rol Paciente y la vincula atómicamente.",
+    )
+    @action(detail=True, methods=["post"], url_path="crear-cuenta")
+    def crear_cuenta(self, request, pk=None):
+        entrada = CrearCuentaPacienteSerializer(data=request.data)
+        entrada.is_valid(raise_exception=True)
+        paciente = crear_cuenta_para_paciente(
+            clinica=request.user.clinica,
+            paciente_id=pk,
+            datos=dict(entrada.validated_data),
+        )
+        return Response(PacienteSerializer(paciente).data, status=status.HTTP_201_CREATED)
+
+    @extend_schema(
+        tags=["Pacientes"],
+        parameters=[BuscarCuentasElegiblesSerializer],
+        responses={200: UsuarioSerializer(many=True), **ERRORES},
+        description="Lista cuentas verificables por Personal con la misma CI.",
+    )
+    @action(detail=True, methods=["get"], url_path="cuentas-elegibles")
+    def cuentas_elegibles(self, request, pk=None):
+        parametros = BuscarCuentasElegiblesSerializer(data=request.query_params)
+        parametros.is_valid(raise_exception=True)
+        paciente = Paciente.all_objects.filter(
+            pk=pk, clinica=request.user.clinica
+        ).first()
+        if paciente is None:
+            from apps.core.api_exceptions import RecursoNoEncontrado
+
+            raise RecursoNoEncontrado("Paciente no encontrado.")
+        queryset = cuentas_elegibles_para_paciente(
+            clinica=request.user.clinica,
+            paciente=paciente,
+            search=parametros.validated_data.get("search", "").strip(),
+        )
+        pagina = self.paginate_queryset(queryset)
+        serializer = UsuarioSerializer(pagina, many=True)
+        return self.get_paginated_response(serializer.data)
 
 
 ERRORES_ENFERMEDAD = {

@@ -38,12 +38,15 @@ export interface Medico {
   personal_nombre: string
   especialidad: number
   especialidad_nombre: string
+  especialidades: number[]
+  especialidades_nombres: string[]
   numero_colegiatura: string
   estado: boolean
 }
 export interface MedicoInput {
   personal: number
   especialidad: number
+  especialidades?: number[]
   numero_colegiatura: string
   estado: boolean
 }

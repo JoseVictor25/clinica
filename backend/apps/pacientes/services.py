@@ -8,6 +8,8 @@ from apps.core.api_exceptions import (
     DatosInvalidos,
     RecursoNoEncontrado,
 )
+from apps.core.identidad import CAMPOS_IDENTIDAD, copiar_identidad
+from apps.personal.models import Personal
 
 from .models import Alergia, Enfermedad, HistoriaClinica, Paciente
 
@@ -41,6 +43,15 @@ def crear_paciente(clinica, datos):
         raise _conflicto_ci()
 
     with transaction.atomic():
+        personal = (
+            Personal.all_objects.select_for_update()
+            .filter(clinica=clinica, ci=datos["ci"])
+            .first()
+        )
+        if personal is not None:
+            copiar_identidad(datos, personal)
+            if personal.usuario_id:
+                datos["email"] = personal.usuario.email
         # El savepoint permite traducir solo el conflicto del paciente.
         # Un fallo posterior al crear la historia se propaga y revierte
         # también al paciente mediante la transacción exterior.
@@ -62,6 +73,12 @@ def actualizar_paciente(paciente, datos):
         datos.get("fecha_nacimiento", paciente.fecha_nacimiento)
     )
     ci = datos.get("ci", paciente.ci)
+    if ci != paciente.ci:
+        raise DatosInvalidos(
+            "La CI no puede modificarse porque identifica a la persona.",
+            codigo="ci_no_modificable",
+            detalles={"ci": ["La CI no puede modificarse."]},
+        )
     duplicado = (
         Paciente.all_objects.filter(clinica=paciente.clinica, ci=ci)
         .exclude(pk=paciente.pk)
@@ -70,14 +87,51 @@ def actualizar_paciente(paciente, datos):
     if duplicado:
         raise _conflicto_ci()
 
+    correo_cuenta = _correo_cuenta_para_paciente(paciente)
+    if correo_cuenta:
+        datos["email"] = correo_cuenta
+
     try:
         with transaction.atomic():
             for campo, valor in datos.items():
                 setattr(paciente, campo, valor)
             paciente.save()
+            _sincronizar_identidad_con_personal(paciente)
             return paciente
     except IntegrityError as exc:
         raise _conflicto_ci() from exc
+
+
+def _correo_cuenta_para_paciente(paciente):
+    if paciente.usuario_id:
+        return paciente.usuario.email
+    personal = (
+        Personal.all_objects.select_related("usuario")
+        .filter(
+            clinica=paciente.clinica,
+            ci=paciente.ci,
+            usuario__isnull=False,
+        )
+        .first()
+    )
+    return personal.usuario.email if personal is not None else ""
+
+
+def _sincronizar_identidad_con_personal(paciente):
+    personal = (
+        Personal.all_objects.select_for_update()
+        .filter(clinica=paciente.clinica, ci=paciente.ci)
+        .first()
+    )
+    if personal is None:
+        return
+    cambios = {
+        campo: getattr(paciente, campo)
+        for campo in CAMPOS_IDENTIDAD
+        if getattr(personal, campo) != getattr(paciente, campo)
+    }
+    if cambios:
+        Personal.all_objects.filter(pk=personal.pk).update(**cambios)
 
 
 def desactivar_paciente(paciente):

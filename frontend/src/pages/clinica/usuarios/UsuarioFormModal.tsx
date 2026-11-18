@@ -14,7 +14,9 @@ import { Modal } from '@/components/ui/Modal'
 import { inputClass } from '@/components/ui/styles'
 import { useAuth } from '@/hooks/useAuth'
 import { mensajeDeError } from '@/lib/errorMessages'
+import { ROL_PACIENTE } from '@/lib/roles'
 import { aplicarErroresDeApi } from '@/lib/formErrors'
+import { correoValido, passwordsCoinciden, usuarioObligatorio } from '../cuentas/validacionesCuenta'
 
 interface Props {
   /** null indica que se creará un usuario. */
@@ -69,6 +71,9 @@ export function UsuarioFormModal({ usuario, onClose }: Props) {
     queryFn: () => rolesApi.listarTodos(true),
     enabled: creando,
   })
+  const rolesDisponibles = roles.data?.filter(
+    (rol) => rol.nombre !== ROL_PACIENTE,
+  ) ?? []
 
   const guardar = useMutation({
     mutationFn: async (valores: Valores): Promise<UsuarioClinica> => {
@@ -88,7 +93,7 @@ export function UsuarioFormModal({ usuario, onClose }: Props) {
       const seleccionados = valores.roles.map(Number)
 
       const rolesValidos = seleccionados.every((id) =>
-        roles.data?.some((rol) => rol.id === id && rol.estado),
+        rolesDisponibles.some((rol) => rol.id === id && rol.estado),
       )
 
       if (!rolesValidos) {
@@ -190,9 +195,7 @@ export function UsuarioFormModal({ usuario, onClose }: Props) {
               errors.username ? 'username-error' : undefined
             }
             {...register('username', {
-              validate: (valor) =>
-                valor.trim().length > 0 ||
-                'El nombre de usuario es obligatorio.',
+              validate: usuarioObligatorio,
               maxLength: {
                 value: 150,
                 message: 'Máximo 150 caracteres.',
@@ -224,9 +227,7 @@ export function UsuarioFormModal({ usuario, onClose }: Props) {
             }
             {...register('email', {
               required: 'El correo es obligatorio.',
-              validate: (valor) =>
-                /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor.trim()) ||
-                'Introduce un correo electrónico válido.',
+              validate: correoValido,
               maxLength: {
                 value: 254,
                 message: 'Máximo 254 caracteres.',
@@ -276,8 +277,7 @@ export function UsuarioFormModal({ usuario, onClose }: Props) {
             }
             {...register('confirmarPassword', {
               validate: (valor) =>
-                valor === getValues('password') ||
-                'Las contraseñas no coinciden.',
+                passwordsCoinciden(valor, getValues('password')),
             })}
           />
         </Field>
@@ -318,7 +318,7 @@ export function UsuarioFormModal({ usuario, onClose }: Props) {
               </div>
             )}
 
-            {roles.data?.map((rol) => (
+            {rolesDisponibles.map((rol) => (
               <label
                 key={rol.id}
                 className="flex items-center gap-2 text-sm text-slate-700"
@@ -332,7 +332,7 @@ export function UsuarioFormModal({ usuario, onClose }: Props) {
               </label>
             ))}
 
-            {roles.isSuccess && roles.data.length === 0 && (
+            {roles.isSuccess && rolesDisponibles.length === 0 && (
               <p className="text-sm text-slate-600">
                 No hay roles activos disponibles.
               </p>
