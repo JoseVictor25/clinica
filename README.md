@@ -192,6 +192,10 @@ docker compose --env-file .env.docker --profile tools run --rm seed
 Consulte [`docs/docker.md`](docs/docker.md) para desarrollo, produccion, pruebas,
 registros, respaldo y limpieza de contenedores.
 
+Para desplegar la aplicacion completa en una instancia AWS EC2 con Docker,
+PostgreSQL privado y HTTPS automatico, consulte
+[`docs/aws-ec2.md`](docs/aws-ec2.md).
+
 ## Documentación
 
 - [`docs/arquitectura.md`](docs/arquitectura.md): stack, capas, estrategia multitenant y API del Sprint 1.

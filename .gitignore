@@ -5,6 +5,7 @@ __pycache__/
 *.pyc
 .env
 .env.docker
+.env.ec2
 db.sqlite3
 .pytest_cache/
 # Node / React
