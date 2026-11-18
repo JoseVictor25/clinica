@@ -56,7 +56,7 @@ Para comprobar primero el servidor sin dominio:
 
 ```dotenv
 SITE_ADDRESS=:80
-ALLOWED_HOSTS=IP_PUBLICA
+ALLOWED_HOSTS=IP_PUBLICA,localhost,127.0.0.1,backend
 CSRF_TRUSTED_ORIGINS=http://IP_PUBLICA
 CORS_ALLOWED_ORIGINS=http://IP_PUBLICA
 SECURE_SSL_REDIRECT=False
@@ -72,7 +72,7 @@ propagado, cambie:
 
 ```dotenv
 SITE_ADDRESS=clinica.ejemplo.com
-ALLOWED_HOSTS=clinica.ejemplo.com
+ALLOWED_HOSTS=clinica.ejemplo.com,localhost,127.0.0.1,backend
 CSRF_TRUSTED_ORIGINS=https://clinica.ejemplo.com
 CORS_ALLOWED_ORIGINS=https://clinica.ejemplo.com
 SECURE_SSL_REDIRECT=True
