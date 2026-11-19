@@ -9,7 +9,8 @@ export interface HistoriaPropia { id: number; fecha_apertura: string; grupo_sang
 export interface MedicoPortal { id: number; nombre: string; especialidad: string }
 export interface CitaPropia { id: number; fecha: string; hora: string; estado: string; modalidad: 'PRESENCIAL' | 'VIRTUAL'; modalidad_display: string; link_videollamada: string | null; motivo: string; medico: MedicoPortal }
 export interface RecetaResumenPropia { id: number; fecha: string; indicaciones: string; cantidad_medicamentos: number }
-export interface ConsultaPropia { id: number; fecha: string; motivo: string; observacion: string; diagnostico: string; medico: MedicoPortal; cita: { id: number; fecha: string; hora: string; estado: string } | null; recetas: RecetaResumenPropia[] }
+export interface EstudioConsultaPropia { id: number; tipo_estudio: string; tipo_estudio_display: string; formato: string; formato_display: string; nombre_archivo: string; estado: string; estado_display: string; observacion_lectura: string | null; fecha_estudio: string }
+export interface ConsultaPropia { id: number; fecha: string; motivo: string; observacion: string; diagnostico: string; medico: MedicoPortal; cita: { id: number; fecha: string; hora: string; estado: string } | null; recetas: RecetaResumenPropia[]; estudios_medicos: EstudioConsultaPropia[] }
 export interface RecetaPropia { id: number; fecha: string; indicaciones: string; consulta: { id: number; fecha: string; motivo: string; diagnostico: string }; medico: MedicoPortal; medicamentos: { id: number; nombre_medicamento: string; dosis: string; frecuencia: string; duracion: string }[] }
 export interface FiltrosPortal { fecha_desde?: string; fecha_hasta?: string; ordering?: 'fecha' | '-fecha'; page?: number; page_size?: number }
 export interface FiltrosCitasPortal extends FiltrosPortal { estado?: string }

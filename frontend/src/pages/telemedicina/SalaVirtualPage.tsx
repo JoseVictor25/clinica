@@ -9,6 +9,7 @@ import { z } from 'zod'
 import { normalizarError } from '@/api/errors'
 import { citasApi, type Cita } from '@/api/modules/citas'
 import { consultasApi, type ConsultaCrearInput } from '@/api/modules/consultas'
+import { estudiosMedicosApi } from '@/api/modules/estudiosMedicos'
 import { recetasApi } from '@/api/modules/recetas'
 import { Button } from '@/components/ui/Button'
 import { Field } from '@/components/ui/Field'
@@ -446,6 +447,61 @@ function FormularioConsultaSala({ cita, onRegistrada }: { cita: Cita; onRegistra
   )
 }
 
+function EstudiosCitaSala({ citaId }: { citaId: number }) {
+  const estudiosQuery = useQuery({
+    queryKey: ['estudios-medicos', 'cita', citaId],
+    queryFn: () => estudiosMedicosApi.listar({ cita_id: citaId, page_size: 50 }),
+  })
+
+  return (
+    <section className="mb-4 space-y-2 rounded-md border border-slate-200 bg-slate-50 p-3">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold text-slate-900">Estudios médicos de esta cita</h3>
+        <button
+          type="button"
+          className="text-xs font-medium text-blue-700 hover:underline"
+          onClick={() => void estudiosQuery.refetch()}
+        >
+          Actualizar
+        </button>
+      </div>
+      {estudiosQuery.isLoading && (
+        <p className="text-xs text-slate-500">Cargando estudios…</p>
+      )}
+      {estudiosQuery.isError && (
+        <p className="text-xs text-red-700">{mensajeDeError(estudiosQuery.error)}</p>
+      )}
+      {estudiosQuery.data && estudiosQuery.data.results.length === 0 && (
+        <p className="text-xs text-slate-500">
+          El paciente aún no ha subido estudios para esta cita.
+        </p>
+      )}
+      {estudiosQuery.data && estudiosQuery.data.results.length > 0 && (
+        <div className="space-y-1.5">
+          {estudiosQuery.data.results.map((estudio) => (
+            <button
+              key={estudio.id}
+              type="button"
+              onClick={() =>
+                window.open(`/estudios/${estudio.id}/visor`, '_blank', 'noopener,noreferrer')
+              }
+              className="flex w-full items-center justify-between gap-2 rounded border border-slate-200 bg-white px-3 py-2 text-left text-xs hover:border-blue-400 hover:bg-blue-50"
+            >
+              <div className="min-w-0">
+                <p className="truncate font-medium text-slate-900">{estudio.nombre_archivo}</p>
+                <p className="text-slate-600">
+                  {estudio.tipo_estudio_display} · {estudio.formato_display} · {estudio.estado_display}
+                </p>
+              </div>
+              <span className="shrink-0 font-medium text-blue-700">Abrir visor</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
 export function SalaVirtualPage() {
   const navigate = useNavigate()
   const { citaId: citaIdTexto } = useParams()
@@ -531,6 +587,7 @@ export function SalaVirtualPage() {
               <p><span className="font-medium">Estado de la cita:</span> {cita.estado_display}</p>
               <p><span className="font-medium">Motivo inicial:</span> {cita.motivo}</p>
             </div>
+            <EstudiosCitaSala citaId={cita.id} />
             <FormularioConsultaSala cita={cita} onRegistrada={() => void query.refetch()} />
           </aside>
         )}

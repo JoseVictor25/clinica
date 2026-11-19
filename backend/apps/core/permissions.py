@@ -92,6 +92,18 @@ class EsMedicoOPaciente(BasePermission):
         )
 
 
+class PuedeAccederEstudiosMedicos(BasePermission):
+    """Permite acceso a estudios médicos a pacientes, médicos y admin de clínica."""
+
+    message = "El rol del usuario no permite acceder a estudios médicos."
+
+    def has_permission(self, request, view):
+        return any(
+            tiene_rol(request.user, rol)
+            for rol in (ROL_PACIENTE, ROL_MEDICO, ROL_ADMIN_CLINICA)
+        )
+
+
 class EsAdminClinicaOMedico(BasePermission):
     """Permite el acceso al administrador de clínica o a un médico."""
 

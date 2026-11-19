@@ -40,6 +40,19 @@ export interface RecetaHistorial {
   medicamentos: MedicamentoHistorial[]
 }
 
+export interface EstudioHistorial {
+  id: number
+  tipo_estudio: string
+  tipo_estudio_display: string
+  formato: string
+  formato_display: string
+  nombre_archivo: string
+  estado: string
+  estado_display: string
+  observacion_lectura: string | null
+  fecha_estudio: string
+}
+
 export interface ConsultaHistorial {
   id: number
   fecha: string
@@ -49,6 +62,7 @@ export interface ConsultaHistorial {
   medico: MedicoHistorial
   cita: CitaHistorial | null
   recetas: RecetaHistorial[]
+  estudios_medicos: EstudioHistorial[]
 }
 
 export interface HistorialConsultasPaciente {

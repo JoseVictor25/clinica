@@ -17,7 +17,15 @@ from apps.core.seed_data import ROL_MEDICO
 from apps.pacientes.models import Alergia, HistoriaClinica, Paciente, TipoAlergia
 from apps.personal.models import DiaSemana, HorarioAtencion, Medico, Personal
 
-from .models import Cita, Consulta, EstadoCita, MedicamentoRecetado, ModalidadCita, Receta
+from .models import (
+    Cita,
+    Consulta,
+    EstadoCita,
+    EstudioMedico,
+    MedicamentoRecetado,
+    ModalidadCita,
+    Receta,
+)
 
 
 DURACION_CITA_MINUTOS = 30
@@ -745,6 +753,11 @@ def crear_consulta(*, usuario, clinica, datos):
         historia.save(update_fields=["fecha_ultima_actualizacion"])
         cita.estado = EstadoCita.ATENDIDA
         cita.save(update_fields=["estado"])
+        EstudioMedico.all_objects.filter(
+            clinica=clinica,
+            cita=cita,
+            consulta__isnull=True,
+        ).update(consulta=consulta)
         return consulta
 
 

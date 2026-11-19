@@ -117,6 +117,41 @@ export function HistorialConsultasPage() {
                 </div>
               )}
             </section>
+            <section className="mt-4 border-t border-slate-200 pt-4">
+              <h3 className="font-medium">Estudios médicos</h3>
+              {consulta.estudios_medicos.length === 0 ? (
+                <p className="mt-2 text-sm text-slate-500">Sin estudios médicos asociados.</p>
+              ) : (
+                <div className="mt-2 space-y-2">
+                  {consulta.estudios_medicos.map((estudio) => (
+                    <div
+                      key={estudio.id}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded bg-slate-50 p-3 text-sm"
+                    >
+                      <div>
+                        <p className="font-medium text-slate-900">{estudio.nombre_archivo}</p>
+                        <p className="text-xs text-slate-600">
+                          {estudio.tipo_estudio_display} · {estudio.formato_display} · {estudio.estado_display}
+                        </p>
+                        {estudio.observacion_lectura && (
+                          <p className="mt-1 text-xs text-slate-700">
+                            <span className="font-medium">Lectura:</span> {estudio.observacion_lectura}
+                          </p>
+                        )}
+                      </div>
+                      <Button
+                        variante="secundario"
+                        onClick={() =>
+                          window.open(`/estudios/${estudio.id}/visor`, '_blank', 'noopener,noreferrer')
+                        }
+                      >
+                        Ver estudio
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
           </article>
         ))}
       </div>

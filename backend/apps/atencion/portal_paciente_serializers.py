@@ -5,7 +5,7 @@ from rest_framework import serializers
 
 from apps.pacientes.models import Alergia, Enfermedad, HistoriaClinica, Paciente
 
-from .models import Cita, Consulta, MedicamentoRecetado, Receta
+from .models import Cita, Consulta, EstudioMedico, MedicamentoRecetado, Receta
 
 
 class RechazaParametrosPortalMixin:
@@ -116,14 +116,37 @@ class RecetaResumenPortalSerializer(serializers.ModelSerializer):
         return len(obj.medicamentos.all())
 
 
+class EstudioPortalSerializer(serializers.ModelSerializer):
+    tipo_estudio_display = serializers.CharField(source="get_tipo_estudio_display", read_only=True)
+    formato_display = serializers.CharField(source="get_formato_display", read_only=True)
+    estado_display = serializers.CharField(source="get_estado_display", read_only=True)
+
+    class Meta:
+        model = EstudioMedico
+        fields = (
+            "id",
+            "tipo_estudio",
+            "tipo_estudio_display",
+            "formato",
+            "formato_display",
+            "nombre_archivo",
+            "estado",
+            "estado_display",
+            "observacion_lectura",
+            "fecha_estudio",
+        )
+        read_only_fields = fields
+
+
 class ConsultaPortalSerializer(serializers.ModelSerializer):
     medico = serializers.SerializerMethodField()
     cita = CitaConsultaPortalSerializer(read_only=True, allow_null=True)
     recetas = RecetaResumenPortalSerializer(many=True, read_only=True)
+    estudios_medicos = EstudioPortalSerializer(many=True, read_only=True)
 
     class Meta:
         model = Consulta
-        fields = ("id", "fecha", "motivo", "observacion", "diagnostico", "medico", "cita", "recetas")
+        fields = ("id", "fecha", "motivo", "observacion", "diagnostico", "medico", "cita", "recetas", "estudios_medicos")
         read_only_fields = fields
 
     @extend_schema_field(MedicoPortalSerializer)

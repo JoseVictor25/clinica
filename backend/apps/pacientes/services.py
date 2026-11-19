@@ -256,7 +256,12 @@ def obtener_historial_consultas(*, usuario, clinica, paciente_id, filtros):
 
     from django.db.models import Prefetch
 
-    from apps.atencion.models import Consulta, MedicamentoRecetado, Receta
+    from apps.atencion.models import (
+        Consulta,
+        EstudioMedico,
+        MedicamentoRecetado,
+        Receta,
+    )
     from apps.atencion.services import obtener_medico_usuario
     from apps.personal.models import Medico
 
@@ -287,11 +292,15 @@ def obtener_historial_consultas(*, usuario, clinica, paciente_id, filtros):
             queryset=MedicamentoRecetado.all_objects.order_by("id"),
         )
     ).order_by("-fecha", "-id")
+    estudios = EstudioMedico.all_objects.order_by("-fecha_estudio", "-id")
     consultas = Consulta.all_objects.filter(
         clinica=clinica, paciente=paciente
     ).select_related(
         "cita", "medico__personal", "medico__especialidad"
-    ).prefetch_related(Prefetch("recetas", queryset=recetas))
+    ).prefetch_related(
+        Prefetch("recetas", queryset=recetas),
+        Prefetch("estudios_medicos", queryset=estudios),
+    )
 
     if filtros.get("fecha_desde"):
         consultas = consultas.filter(fecha__date__gte=filtros["fecha_desde"])
