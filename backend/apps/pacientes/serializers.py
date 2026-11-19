@@ -3,7 +3,7 @@
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
 
-from apps.atencion.models import Cita, Consulta, Receta
+from apps.atencion.models import Cita, Consulta, EstudioMedico, Receta
 from apps.atencion.serializers import MedicamentoRecetadoSerializer
 from apps.seguridad.serializers import CuentaResumenSerializer
 
@@ -142,16 +142,48 @@ class MedicoHistorialSerializer(serializers.Serializer):
     especialidad = serializers.CharField()
 
 
+class EstudioHistorialSerializer(serializers.ModelSerializer):
+    tipo_estudio_display = serializers.CharField(
+        source="get_tipo_estudio_display",
+        read_only=True,
+    )
+    formato_display = serializers.CharField(
+        source="get_formato_display",
+        read_only=True,
+    )
+    estado_display = serializers.CharField(
+        source="get_estado_display",
+        read_only=True,
+    )
+
+    class Meta:
+        model = EstudioMedico
+        fields = (
+            "id",
+            "tipo_estudio",
+            "tipo_estudio_display",
+            "formato",
+            "formato_display",
+            "nombre_archivo",
+            "estado",
+            "estado_display",
+            "observacion_lectura",
+            "fecha_estudio",
+        )
+        read_only_fields = fields
+
+
 class ConsultaHistorialSerializer(serializers.ModelSerializer):
     medico = serializers.SerializerMethodField()
     cita = CitaHistorialSerializer(read_only=True, allow_null=True)
     recetas = serializers.SerializerMethodField()
+    estudios_medicos = EstudioHistorialSerializer(many=True, read_only=True)
 
     class Meta:
         model = Consulta
         fields = (
             "id", "fecha", "motivo", "observacion", "diagnostico",
-            "medico", "cita", "recetas",
+            "medico", "cita", "recetas", "estudios_medicos",
         )
         read_only_fields = fields
 

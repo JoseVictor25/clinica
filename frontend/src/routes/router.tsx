@@ -23,12 +23,15 @@ import { SinPermisoPage } from '@/pages/errors/SinPermisoPage'
 import { InicioPage } from '@/pages/InicioPage'
 import { PortalPacientePage } from '@/pages/paciente/PortalPacientePage'
 import { SalaVirtualPage } from '@/pages/telemedicina/SalaVirtualPage'
+import { VisorEstudioPage } from '@/pages/estudios/VisorEstudioPage'
 import { ProtectedRoute } from './ProtectedRoute'
 import { Raiz } from './Raiz'
 import { RoleRoute } from './RoleRoute'
 
 const adminOMedico = (usuario: Parameters<typeof esAdminClinica>[0]) => esAdminClinica(usuario) || esMedico(usuario)
 const medicoOPaciente = (usuario: Parameters<typeof esMedico>[0]) => esMedico(usuario) || esPaciente(usuario)
+const puedeVerEstudios = (usuario: Parameters<typeof esAdminClinica>[0]) =>
+  esAdminClinica(usuario) || esMedico(usuario) || esPaciente(usuario)
 
 export const router = createBrowserRouter([
   {
@@ -42,6 +45,10 @@ export const router = createBrowserRouter([
           {
             element: <RoleRoute permitir={medicoOPaciente} />,
             children: [{ path: '/sala-virtual/:citaId', element: <SalaVirtualPage /> }],
+          },
+          {
+            element: <RoleRoute permitir={puedeVerEstudios} />,
+            children: [{ path: '/estudios/:estudioId/visor', element: <VisorEstudioPage /> }],
           },
           {
             element: <AppLayout />,

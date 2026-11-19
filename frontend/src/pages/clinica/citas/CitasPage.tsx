@@ -4,10 +4,13 @@ import { toast } from 'sonner'
 import { citasApi, ESTADOS_CITA, type Cita, type EstadoCita } from '@/api/modules/citas'
 import { DataTable, type Columna } from '@/components/data/DataTable'
 import { Pagination } from '@/components/data/Pagination'
+import { EstudiosCitaModal } from '@/components/estudios/EstudiosCitaModal'
 import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { inputClass } from '@/components/ui/styles'
+import { useAuth } from '@/hooks/useAuth'
 import { mensajeDeError } from '@/lib/errorMessages'
+import { esAdminClinica } from '@/lib/roles'
 import { CitaDetalleModal } from './CitaDetalleModal'
 import { CitaFormModal } from './CitaFormModal'
 import { ReprogramarCitaModal } from './ReprogramarCitaModal'
@@ -18,6 +21,8 @@ type AccionEstado = {
 }
 
 export function CitasPage() {
+  const { usuario } = useAuth()
+  const admin = Boolean(usuario && esAdminClinica(usuario))
   const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
   const [fecha, setFecha] = useState('')
@@ -25,6 +30,7 @@ export function CitasPage() {
   const [formulario, setFormulario] = useState(false)
   const [detalle, setDetalle] = useState<Cita | null>(null)
   const [reprogramando, setReprogramando] = useState<Cita | null>(null)
+  const [citaEstudios, setCitaEstudios] = useState<Cita | null>(null)
   const [accion, setAccion] = useState<AccionEstado | null>(null)
 
   const query = useQuery({
@@ -59,6 +65,9 @@ export function CitasPage() {
       celda: (cita) => (
         <div className="flex flex-wrap justify-end gap-2">
           <Button variante="secundario" onClick={() => setDetalle(cita)}>Ver</Button>
+          {admin && (
+            <Button variante="secundario" onClick={() => setCitaEstudios(cita)}>Estudios</Button>
+          )}
           {cita.estado === 'PROGRAMADA' && (
             <Button variante="secundario" onClick={() => setAccion({ tipo: 'confirmar', cita })}>
               Confirmar
@@ -102,6 +111,7 @@ export function CitasPage() {
       {formulario && <CitaFormModal onClose={() => setFormulario(false)} />}
       {detalle && <CitaDetalleModal cita={detalle} onClose={() => setDetalle(null)} />}
       {reprogramando && <ReprogramarCitaModal cita={reprogramando} onClose={() => setReprogramando(null)} />}
+      {citaEstudios && <EstudiosCitaModal cita={citaEstudios} onClose={() => setCitaEstudios(null)} />}
       {accion && (
         <ConfirmDialog
           titulo={accion.tipo === 'confirmar' ? 'Confirmar cita' : 'Cancelar cita'}

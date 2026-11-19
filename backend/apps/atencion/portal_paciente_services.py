@@ -7,7 +7,7 @@ from apps.core.permissions import tiene_rol
 from apps.core.seed_data import ROL_PACIENTE
 from apps.pacientes.models import Alergia, Enfermedad, HistoriaClinica, Paciente
 
-from .models import Cita, Consulta, MedicamentoRecetado, Receta
+from .models import Cita, Consulta, EstudioMedico, MedicamentoRecetado, Receta
 
 
 def obtener_paciente_autenticado(*, usuario, clinica):
@@ -53,9 +53,13 @@ def obtener_consultas_portal(*, paciente, clinica, filtros):
     recetas = Receta.all_objects.prefetch_related(
         Prefetch("medicamentos", queryset=MedicamentoRecetado.all_objects.order_by("id"))
     ).order_by("-fecha", "-id")
+    estudios = EstudioMedico.all_objects.order_by("-fecha_estudio", "-id")
     queryset = Consulta.all_objects.filter(clinica=clinica, paciente=paciente).select_related(
         "cita", "medico__personal", "medico__especialidad"
-    ).prefetch_related(Prefetch("recetas", queryset=recetas))
+    ).prefetch_related(
+        Prefetch("recetas", queryset=recetas),
+        Prefetch("estudios_medicos", queryset=estudios),
+    )
     if filtros.get("fecha_desde"):
         queryset = queryset.filter(fecha__date__gte=filtros["fecha_desde"])
     if filtros.get("fecha_hasta"):

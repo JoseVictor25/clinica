@@ -2,6 +2,7 @@
 from django.urls import path
 from rest_framework.routers import DefaultRouter
 
+from .estudios_views import EstudioMedicoViewSet
 from .views import (
     CitaViewSet,
     ConsultaViewSet,
@@ -21,6 +22,7 @@ from .portal_paciente_views import (
 router = DefaultRouter()
 router.register("citas", CitaViewSet, basename="cita")
 router.register("consultas", ConsultaViewSet, basename="consulta")
+router.register("estudios-medicos", EstudioMedicoViewSet, basename="estudio-medico")
 
 urlpatterns = [
     path("portal-paciente/mi-informacion/", MiInformacionView.as_view(), name="portal-mi-informacion"),

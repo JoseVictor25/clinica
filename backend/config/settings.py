@@ -261,3 +261,16 @@ DAILY_API_BASE_URL = config(
     "DAILY_API_BASE_URL",
     default="https://api.daily.co/v1",
 ).rstrip("/")
+
+# --- Estudios Médicos (Supabase Storage) ------------------------------------
+SUPABASE_URL = (
+    config("SUPABASE_URL", default="")
+    .strip()
+    .rstrip("/")
+    .removesuffix("/rest/v1")
+)
+SUPABASE_SECRET_KEY = config("SUPABASE_SECRET_KEY", default="").strip()
+SUPABASE_STORAGE_BUCKET = config(
+    "SUPABASE_STORAGE_BUCKET",
+    default="estudios-medicos",
+).strip()
