@@ -254,3 +254,10 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
     "COMPONENT_SPLIT_REQUEST": True,
 }
+
+# --- Telemedicina (Daily.co) ------------------------------------------------
+DAILY_API_KEY = config("DAILY_API_KEY", default="").strip()
+DAILY_API_BASE_URL = config(
+    "DAILY_API_BASE_URL",
+    default="https://api.daily.co/v1",
+).rstrip("/")

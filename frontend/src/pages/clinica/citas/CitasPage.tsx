@@ -50,6 +50,7 @@ export function CitasPage() {
     { encabezado: 'Especialidad', celda: (c) => c.especialidad_nombre },
     { encabezado: 'Fecha', celda: (c) => c.fecha },
     { encabezado: 'Hora', celda: (c) => c.hora.slice(0, 5) },
+    { encabezado: 'Modalidad', celda: (c) => c.modalidad_display },
     { encabezado: 'Estado', celda: (c) => c.estado_display },
     { encabezado: 'Motivo', celda: (c) => c.motivo },
     {

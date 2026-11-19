@@ -5,7 +5,7 @@ import { useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { normalizarError } from '@/api/errors'
-import { citasApi, type CitaCrearInput } from '@/api/modules/citas'
+import { citasApi, MODALIDADES_CITA, type CitaCrearInput } from '@/api/modules/citas'
 import { especialidadesApi } from '@/api/modules/especialidades'
 import { medicosApi, todasLasPaginas } from '@/api/modules/gestion'
 import { pacientesApi } from '@/api/modules/pacientes'
@@ -24,17 +24,18 @@ const esquema = z.object({
   medico_id: z.number().int().positive('Selecciona un médico.'),
   fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Selecciona una fecha.'),
   hora: z.string().regex(/^\d{2}:\d{2}$/, 'Selecciona un horario disponible.'),
+  modalidad: z.enum(['PRESENCIAL', 'VIRTUAL']),
   motivo: z.string().trim().min(1, 'El motivo es obligatorio.').max(255, 'Máximo 255 caracteres.'),
 })
 type Valores = z.infer<typeof esquema>
-const CAMPOS = ['paciente_id', 'medico_id', 'fecha', 'hora', 'motivo'] as const
+const CAMPOS = ['paciente_id', 'medico_id', 'fecha', 'hora', 'modalidad', 'motivo'] as const
 
 export function CitaFormModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient()
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
   const { control, register, handleSubmit, setValue, setError, formState: { errors } } = useForm<Valores>({
     resolver: zodResolver(esquema),
-    defaultValues: { paciente_id: 0, especialidad_id: 0, medico_id: 0, fecha: '', hora: '', motivo: '' },
+    defaultValues: { paciente_id: 0, especialidad_id: 0, medico_id: 0, fecha: '', hora: '', modalidad: 'PRESENCIAL', motivo: '' },
   })
   const pacienteId = useWatch({ control, name: 'paciente_id' })
   const especialidadId = useWatch({ control, name: 'especialidad_id' })
@@ -78,6 +79,7 @@ export function CitaFormModal({ onClose }: { onClose: () => void }) {
       medico_id: Number(valores.medico_id),
       fecha: valores.fecha,
       hora: valores.hora,
+      modalidad: valores.modalidad,
       motivo: valores.motivo.trim(),
     } satisfies CitaCrearInput),
     onSuccess: () => {
@@ -145,6 +147,13 @@ export function CitaFormModal({ onClose }: { onClose: () => void }) {
             listo={puedeConsultar}
             onSeleccionar={(valor) => setValue('hora', valor, { shouldValidate: true })}
           />
+        </Field>
+        <Field id="modalidad" label="Modalidad" error={errors.modalidad?.message}>
+          <select id="modalidad" className={inputClass} {...register('modalidad')}>
+            {MODALIDADES_CITA.map((item) => (
+              <option key={item.valor} value={item.valor}>{item.etiqueta}</option>
+            ))}
+          </select>
         </Field>
         <Field id="motivo" label="Motivo" error={errors.motivo?.message}>
           <textarea id="motivo" rows={3} maxLength={255} className={inputClass} {...register('motivo')} />

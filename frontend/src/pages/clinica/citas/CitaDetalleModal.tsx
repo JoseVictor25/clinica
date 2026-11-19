@@ -16,9 +16,16 @@ export function CitaDetalleModal({
         <div><dt className="font-medium text-slate-500">Médico</dt><dd>{cita.medico_nombre}</dd></div>
         <div><dt className="font-medium text-slate-500">Especialidad</dt><dd>{cita.especialidad_nombre}</dd></div>
         <div><dt className="font-medium text-slate-500">Estado</dt><dd>{cita.estado_display}</dd></div>
+        <div><dt className="font-medium text-slate-500">Modalidad</dt><dd>{cita.modalidad_display}</dd></div>
         <div><dt className="font-medium text-slate-500">Fecha</dt><dd>{cita.fecha}</dd></div>
         <div><dt className="font-medium text-slate-500">Hora</dt><dd>{cita.hora.slice(0, 5)}</dd></div>
         <div className="sm:col-span-2"><dt className="font-medium text-slate-500">Motivo</dt><dd>{cita.motivo}</dd></div>
+        {cita.link_videollamada && (
+          <div className="sm:col-span-2">
+            <dt className="font-medium text-slate-500">Enlace de videollamada</dt>
+            <dd className="break-all text-blue-700">{cita.link_videollamada}</dd>
+          </div>
+        )}
       </dl>
       <div className="mt-6 flex justify-end">
         <Button variante="secundario" onClick={onClose}>Cerrar</Button>

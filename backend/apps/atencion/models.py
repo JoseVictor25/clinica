@@ -16,6 +16,11 @@ class EstadoCita(models.TextChoices):
     NO_ASISTIO = "NO_ASISTIO", "No asistió"
 
 
+class ModalidadCita(models.TextChoices):
+    PRESENCIAL = "PRESENCIAL", "Presencial"
+    VIRTUAL = "VIRTUAL", "Virtual"
+
+
 class Cita(TenantModel):
     clinica = models.ForeignKey(
         "clinicas.Clinica",
@@ -38,6 +43,16 @@ class Cita(TenantModel):
         max_length=20,
         choices=EstadoCita.choices,
         default=EstadoCita.PROGRAMADA,
+    )
+    modalidad = models.CharField(
+        max_length=20,
+        choices=ModalidadCita.choices,
+        default=ModalidadCita.PRESENCIAL,
+    )
+    link_videollamada = models.URLField(
+        max_length=500,
+        null=True,
+        blank=True,
     )
     motivo = models.CharField(max_length=255)
 

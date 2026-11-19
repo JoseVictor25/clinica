@@ -84,10 +84,11 @@ class MedicoPortalSerializer(serializers.Serializer):
 
 class CitaPortalSerializer(serializers.ModelSerializer):
     medico = serializers.SerializerMethodField()
+    modalidad_display = serializers.CharField(source="get_modalidad_display", read_only=True)
 
     class Meta:
         model = Cita
-        fields = ("id", "fecha", "hora", "estado", "motivo", "medico")
+        fields = ("id", "fecha", "hora", "estado", "modalidad", "modalidad_display", "link_videollamada", "motivo", "medico")
         read_only_fields = fields
 
     @extend_schema_field(MedicoPortalSerializer)

@@ -7,7 +7,7 @@ export interface EnfermedadPropia { id: number; nombre: string; tipo: string; se
 export interface AlergiaPropia { id: number; nombre: string; tipo: string; severidad: string; descripcion: string }
 export interface HistoriaPropia { id: number; fecha_apertura: string; grupo_sanguineo: string; observaciones_generales: string; estado: boolean; enfermedades: EnfermedadPropia[]; alergias: AlergiaPropia[] }
 export interface MedicoPortal { id: number; nombre: string; especialidad: string }
-export interface CitaPropia { id: number; fecha: string; hora: string; estado: string; motivo: string; medico: MedicoPortal }
+export interface CitaPropia { id: number; fecha: string; hora: string; estado: string; modalidad: 'PRESENCIAL' | 'VIRTUAL'; modalidad_display: string; link_videollamada: string | null; motivo: string; medico: MedicoPortal }
 export interface RecetaResumenPropia { id: number; fecha: string; indicaciones: string; cantidad_medicamentos: number }
 export interface ConsultaPropia { id: number; fecha: string; motivo: string; observacion: string; diagnostico: string; medico: MedicoPortal; cita: { id: number; fecha: string; hora: string; estado: string } | null; recetas: RecetaResumenPropia[] }
 export interface RecetaPropia { id: number; fecha: string; indicaciones: string; consulta: { id: number; fecha: string; motivo: string; diagnostico: string }; medico: MedicoPortal; medicamentos: { id: number; nombre_medicamento: string; dosis: string; frecuencia: string; duracion: string }[] }

@@ -32,6 +32,7 @@ export function MiAgendaPage() {
     { encabezado: 'Paciente', celda: (cita) => cita.paciente_nombre },
     { encabezado: 'Fecha', celda: (cita) => cita.fecha },
     { encabezado: 'Hora', celda: (cita) => cita.hora.slice(0, 5) },
+    { encabezado: 'Modalidad', celda: (cita) => cita.modalidad_display },
     { encabezado: 'Estado', celda: (cita) => cita.estado_display },
     { encabezado: 'Motivo', celda: (cita) => cita.motivo },
     { encabezado: 'Especialidad', celda: (cita) => cita.especialidad_nombre },
@@ -39,8 +40,13 @@ export function MiAgendaPage() {
       encabezado: 'Acciones',
       className: 'text-right',
       celda: (cita) => (
-        <div className="flex justify-end gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
           <Button variante="secundario" onClick={() => setDetalle(cita)}>Ver</Button>
+          {cita.modalidad === 'VIRTUAL' && cita.link_videollamada && cita.estado !== 'CANCELADA' && cita.estado !== 'NO_ASISTIO' && (
+            <Button onClick={() => window.open(`/sala-virtual/${cita.id}`, '_blank', 'noopener,noreferrer')}>
+              Ingresar a la sala virtual
+            </Button>
+          )}
           {cita.estado === 'CONFIRMADA' && !cita.tiene_consulta && (
             <Button onClick={() => setCitaAAtender(cita)}>Atender</Button>
           )}
