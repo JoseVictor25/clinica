@@ -1,17 +1,23 @@
 """Reglas de negocio para la creación y disponibilidad de citas."""
 
 from datetime import datetime, timedelta
+import json
 import unicodedata
+from urllib import error as urllib_error, request as urllib_request
+import uuid
 
+from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.db.models import Prefetch
 from django.utils import timezone
 
 from apps.core.api_exceptions import Conflicto, DatosInvalidos, RecursoNoEncontrado
+from apps.core.permissions import tiene_rol
+from apps.core.seed_data import ROL_MEDICO
 from apps.pacientes.models import Alergia, HistoriaClinica, Paciente, TipoAlergia
 from apps.personal.models import DiaSemana, HorarioAtencion, Medico, Personal
 
-from .models import Cita, Consulta, EstadoCita, MedicamentoRecetado, Receta
+from .models import Cita, Consulta, EstadoCita, MedicamentoRecetado, ModalidadCita, Receta
 
 
 DURACION_CITA_MINUTOS = 30
@@ -343,6 +349,59 @@ def _traducir_integrity_error(error):
     return None
 
 
+def _generar_link_videollamada(clinica):
+    """Crea una sala en Daily.co y devuelve su URL pública."""
+
+    if not settings.DAILY_API_KEY:
+        raise Conflicto(
+            "Falta configurar DAILY_API_KEY en el servidor para crear salas virtuales.",
+            codigo="telemedicina_no_configurada",
+        )
+
+    nombre_sala = f"clinica-{clinica.pk}-{uuid.uuid4().hex[:12]}"
+    payload = json.dumps(
+        {
+            "name": nombre_sala,
+            "privacy": "public",
+            "properties": {
+                "enable_chat": True,
+                "enable_screenshare": True,
+                "enable_prejoin_ui": False,
+                "start_video_off": False,
+                "start_audio_off": False,
+                "lang": "es",
+            },
+        }
+    ).encode("utf-8")
+
+    peticion = urllib_request.Request(
+        f"{settings.DAILY_API_BASE_URL}/rooms",
+        data=payload,
+        headers={
+            "Authorization": f"Bearer {settings.DAILY_API_KEY}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+
+    try:
+        with urllib_request.urlopen(peticion, timeout=10) as respuesta:
+            datos = json.loads(respuesta.read().decode("utf-8"))
+    except (urllib_error.HTTPError, urllib_error.URLError, TimeoutError, ValueError) as exc:
+        raise Conflicto(
+            "No se pudo crear la sala de videollamada en Daily.co.",
+            codigo="error_daily",
+        ) from exc
+
+    url_sala = datos.get("url")
+    if not url_sala:
+        raise Conflicto(
+            "Daily.co no devolvió una URL válida para la sala.",
+            codigo="error_daily",
+        )
+    return url_sala
+
+
 def crear_cita(clinica, datos):
     """Crea una cita después de revalidar sus reglas dentro de un bloqueo."""
 
@@ -350,7 +409,13 @@ def crear_cita(clinica, datos):
     medico_id = datos["medico_id"]
     fecha = datos["fecha"]
     hora = datos["hora"]
+    modalidad = datos.get("modalidad", ModalidadCita.PRESENCIAL)
     motivo = datos["motivo"]
+    link_videollamada = (
+        _generar_link_videollamada(clinica)
+        if modalidad == ModalidadCita.VIRTUAL
+        else None
+    )
 
     with transaction.atomic():
         # Orden estable para reducir interbloqueos: paciente -> médico -> personal.
@@ -387,6 +452,8 @@ def crear_cita(clinica, datos):
                     medico=medico,
                     fecha=fecha,
                     hora=hora,
+                    modalidad=modalidad,
+                    link_videollamada=link_videollamada,
                     motivo=motivo,
                     estado=EstadoCita.PROGRAMADA,
                 )
@@ -828,3 +895,37 @@ def obtener_receta_medico(*, usuario, clinica, receta_id):
         raise RecursoNoEncontrado(
             "Receta no encontrada.", codigo="no_encontrado"
         ) from exc
+
+
+def obtener_cita_sala_virtual(*, usuario, clinica, cita_id):
+    """Devuelve la cita virtual si pertenece al médico o paciente autenticado."""
+
+    from .portal_paciente_services import obtener_paciente_autenticado
+
+    queryset = Cita.all_objects.select_related(
+        "paciente",
+        "medico__personal",
+        "medico__especialidad",
+        "consulta",
+    )
+
+    if tiene_rol(usuario, ROL_MEDICO):
+        _, medico = obtener_medico_usuario(usuario=usuario, clinica=clinica)
+        cita = queryset.filter(pk=cita_id, clinica=clinica, medico=medico).first()
+    else:
+        paciente = obtener_paciente_autenticado(usuario=usuario, clinica=clinica)
+        cita = queryset.filter(pk=cita_id, clinica=clinica, paciente=paciente).first()
+
+    if cita is None:
+        raise RecursoNoEncontrado("Cita no encontrada.", codigo="no_encontrado")
+    if cita.modalidad != ModalidadCita.VIRTUAL or not cita.link_videollamada:
+        raise Conflicto(
+            "La cita seleccionada no tiene modalidad virtual.",
+            codigo="cita_no_virtual",
+        )
+    if cita.estado in (EstadoCita.CANCELADA, EstadoCita.NO_ASISTIO):
+        raise Conflicto(
+            "La cita no está disponible para videollamada.",
+            codigo="cita_no_disponible",
+        )
+    return cita

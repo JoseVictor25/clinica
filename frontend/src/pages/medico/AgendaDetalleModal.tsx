@@ -17,6 +17,7 @@ export function AgendaDetalleModal({
         <div><dt className="font-medium text-slate-500">Fecha</dt><dd>{cita.fecha}</dd></div>
         <div><dt className="font-medium text-slate-500">Hora</dt><dd>{cita.hora.slice(0, 5)}</dd></div>
         <div><dt className="font-medium text-slate-500">Estado</dt><dd>{cita.estado_display}</dd></div>
+        <div><dt className="font-medium text-slate-500">Modalidad</dt><dd>{cita.modalidad_display}</dd></div>
         <div className="sm:col-span-2"><dt className="font-medium text-slate-500">Motivo</dt><dd>{cita.motivo}</dd></div>
       </dl>
       <div className="mt-6 flex justify-end">

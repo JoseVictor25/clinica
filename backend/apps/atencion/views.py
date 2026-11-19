@@ -18,6 +18,7 @@ from rest_framework.response import Response
 from apps.core.permissions import (
     EsAdminClinicaORecepcionista,
     EsMedico,
+    EsMedicoOPaciente,
     TieneClinica,
     TieneSuscripcionVigente,
 )
@@ -45,6 +46,7 @@ from .services import (
     crear_consulta,
     crear_cita,
     obtener_agenda_medico,
+    obtener_cita_sala_virtual,
     obtener_consulta_medico,
     obtener_disponibilidad,
     crear_receta,
@@ -508,4 +510,27 @@ class CitaViewSet(
             **parametros.validated_data,
         )
         return Response(DisponibilidadSerializer(resultado).data)
+
+
+class SalaVirtualCitaView(generics.GenericAPIView):
+    """Devuelve los datos de una cita virtual para el médico o paciente asignado."""
+
+    serializer_class = CitaSerializer
+    permission_classes = (TieneClinica, TieneSuscripcionVigente, EsMedicoOPaciente)
+
+    @extend_schema(
+        tags=["Citas"],
+        description=(
+            "Devuelve los datos de la cita virtual (incluido link_videollamada) "
+            "únicamente al médico o al paciente asignado a esa cita."
+        ),
+        responses={200: CitaSerializer, **ERRORES_CITA},
+    )
+    def get(self, request, pk):
+        cita = obtener_cita_sala_virtual(
+            usuario=request.user,
+            clinica=request.user.clinica,
+            cita_id=pk,
+        )
+        return Response(self.get_serializer(cita).data)
 

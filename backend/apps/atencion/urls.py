@@ -8,6 +8,7 @@ from .views import (
     MiAgendaMedicoView,
     RecetaCrearView,
     RecetaDetalleView,
+    SalaVirtualCitaView,
 )
 from .portal_paciente_views import (
     MiHistoriaView,
@@ -28,6 +29,11 @@ urlpatterns = [
     path("portal-paciente/mis-consultas/", MisConsultasView.as_view(), name="portal-mis-consultas"),
     path("portal-paciente/mis-recetas/<int:pk>/", MiRecetaDetalleView.as_view(), name="portal-mi-receta"),
     path("citas/mi-agenda/", MiAgendaMedicoView.as_view(), name="mi-agenda"),
+    path(
+        "citas/<int:pk>/sala-virtual/",
+        SalaVirtualCitaView.as_view(),
+        name="cita-sala-virtual",
+    ),
     path(
         "consultas/<int:consulta_id>/recetas/",
         RecetaCrearView.as_view(),

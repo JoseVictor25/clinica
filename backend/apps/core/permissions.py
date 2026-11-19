@@ -81,6 +81,17 @@ class EsPaciente(BasePermission):
         return tiene_rol(request.user, ROL_PACIENTE)
 
 
+class EsMedicoOPaciente(BasePermission):
+    """Permite el acceso al rol Médico o Paciente."""
+
+    message = "Se requiere el rol Médico o Paciente."
+
+    def has_permission(self, request, view):
+        return tiene_rol(request.user, ROL_MEDICO) or tiene_rol(
+            request.user, ROL_PACIENTE
+        )
+
+
 class EsAdminClinicaOMedico(BasePermission):
     """Permite el acceso al administrador de clínica o a un médico."""
 

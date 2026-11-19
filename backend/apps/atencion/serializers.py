@@ -2,7 +2,7 @@
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
 
-from .models import Cita, Consulta, EstadoCita, MedicamentoRecetado, Receta
+from .models import Cita, Consulta, EstadoCita, MedicamentoRecetado, ModalidadCita, Receta
 
 
 class RechazaCamposDesconocidosMixin:
@@ -29,6 +29,11 @@ class CitaCrearSerializer(
     medico_id = serializers.IntegerField(min_value=1)
     fecha = serializers.DateField()
     hora = serializers.TimeField(format="%H:%M", input_formats=["%H:%M"])
+    modalidad = serializers.ChoiceField(
+        choices=ModalidadCita.choices,
+        required=False,
+        default=ModalidadCita.PRESENCIAL,
+    )
     motivo = serializers.CharField(max_length=255, trim_whitespace=True)
 
     def validate_motivo(self, valor):
@@ -121,6 +126,10 @@ class CitaSerializer(serializers.ModelSerializer):
         source="get_estado_display",
         read_only=True,
     )
+    modalidad_display = serializers.CharField(
+        source="get_modalidad_display",
+        read_only=True,
+    )
     consulta_id = serializers.SerializerMethodField()
     tiene_consulta = serializers.SerializerMethodField()
 
@@ -138,6 +147,9 @@ class CitaSerializer(serializers.ModelSerializer):
             "hora",
             "estado",
             "estado_display",
+            "modalidad",
+            "modalidad_display",
+            "link_videollamada",
             "motivo",
             "consulta_id",
             "tiene_consulta",

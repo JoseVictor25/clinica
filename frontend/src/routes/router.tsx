@@ -22,11 +22,13 @@ import { NotFoundPage } from '@/pages/errors/NotFoundPage'
 import { SinPermisoPage } from '@/pages/errors/SinPermisoPage'
 import { InicioPage } from '@/pages/InicioPage'
 import { PortalPacientePage } from '@/pages/paciente/PortalPacientePage'
+import { SalaVirtualPage } from '@/pages/telemedicina/SalaVirtualPage'
 import { ProtectedRoute } from './ProtectedRoute'
 import { Raiz } from './Raiz'
 import { RoleRoute } from './RoleRoute'
 
 const adminOMedico = (usuario: Parameters<typeof esAdminClinica>[0]) => esAdminClinica(usuario) || esMedico(usuario)
+const medicoOPaciente = (usuario: Parameters<typeof esMedico>[0]) => esMedico(usuario) || esPaciente(usuario)
 
 export const router = createBrowserRouter([
   {
@@ -36,8 +38,13 @@ export const router = createBrowserRouter([
       { path: '/clinica-inactiva', element: <ClinicaInactivaPage /> },
       {
         element: <ProtectedRoute />,
-        children: [{
-          element: <AppLayout />,
+        children: [
+          {
+            element: <RoleRoute permitir={medicoOPaciente} />,
+            children: [{ path: '/sala-virtual/:citaId', element: <SalaVirtualPage /> }],
+          },
+          {
+            element: <AppLayout />,
           children: [
             { index: true, element: <InicioPage /> },
             { path: 'cuenta', element: <CuentaPage /> },
@@ -90,7 +97,8 @@ export const router = createBrowserRouter([
             },
             { path: '*', element: <NotFoundPage /> },
           ],
-        }],
+        },
+        ],
       },
     ],
   },

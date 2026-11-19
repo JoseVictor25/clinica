@@ -16,6 +16,13 @@ export const ESTADOS_CITA: { valor: EstadoCita; etiqueta: string }[] = [
   { valor: 'NO_ASISTIO', etiqueta: 'No asistió' },
 ]
 
+export type ModalidadCita = 'PRESENCIAL' | 'VIRTUAL'
+
+export const MODALIDADES_CITA: { valor: ModalidadCita; etiqueta: string }[] = [
+  { valor: 'PRESENCIAL', etiqueta: 'Presencial' },
+  { valor: 'VIRTUAL', etiqueta: 'Virtual' },
+]
+
 export interface Cita {
   id: number
   paciente_id: number
@@ -28,6 +35,9 @@ export interface Cita {
   hora: string
   estado: EstadoCita
   estado_display: string
+  modalidad: ModalidadCita
+  modalidad_display: string
+  link_videollamada: string | null
   motivo: string
   consulta_id: number | null
   tiene_consulta: boolean
@@ -38,6 +48,7 @@ export interface CitaCrearInput {
   medico_id: number
   fecha: string
   hora: string
+  modalidad?: ModalidadCita
   motivo: string
 }
 
@@ -75,6 +86,9 @@ export const citasApi = {
   },
   async obtener(id: number): Promise<Cita> {
     return (await api.get<Cita>(`/citas/${id}/`)).data
+  },
+  async obtenerSalaVirtual(id: number): Promise<Cita> {
+    return (await api.get<Cita>(`/citas/${id}/sala-virtual/`)).data
   },
   async crear(datos: CitaCrearInput): Promise<Cita> {
     return (await api.post<Cita>('/citas/', datos)).data
