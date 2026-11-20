@@ -282,3 +282,11 @@ FCM_SERVICE_ACCOUNT_FILE = config(
     "FCM_SERVICE_ACCOUNT_FILE",
     default=config("GOOGLE_APPLICATION_CREDENTIALS", default=""),
 ).strip()
+
+# --- Asistente Guía IA (Ollama) ---------------------------------------------
+OLLAMA_BASE_URL = config(
+    "OLLAMA_BASE_URL",
+    default="http://host.docker.internal:11434",
+).strip().rstrip("/")
+OLLAMA_MODEL = config("OLLAMA_MODEL", default="qwen2.5:7b").strip()
+OLLAMA_TIMEOUT_SECONDS = config("OLLAMA_TIMEOUT_SECONDS", default=180, cast=int)

@@ -116,6 +116,7 @@ export function RolesPage() {
         </h1>
 
         <Button
+          data-guia-id="btn-nuevo-rol"
           disabled={eliminar.isPending}
           onClick={() => setFormulario(null)}
         >

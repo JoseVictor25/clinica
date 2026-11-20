@@ -1,6 +1,7 @@
 import { LogOut, Menu } from 'lucide-react'
 import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
+import { AsistenteGuia } from '@/components/asistente/AsistenteGuia'
 import { useAuth } from '@/hooks/useAuth'
 import { ITEMS_NAV } from '@/lib/navigation'
 
@@ -19,11 +20,12 @@ export function AppLayout() {
       >
         <div className="px-4 py-5 text-lg font-semibold text-blue-700">Clínicas SaaS</div>
         <nav className="space-y-1 px-2 pb-4">
-          {items.map(({ etiqueta, ruta, icono: Icono }) => (
+          {items.map(({ etiqueta, ruta, guiaId, icono: Icono }) => (
             <NavLink
               key={ruta}
               to={ruta}
               end={ruta === '/'}
+              data-guia-id={guiaId}
               onClick={() => setMenuAbierto(false)}
               className={({ isActive }) =>
                 `flex items-center gap-3 rounded-md px-3 py-2 text-sm ${isActive ? 'bg-blue-50 font-medium text-blue-700' : 'text-slate-700 hover:bg-slate-100'
@@ -74,6 +76,7 @@ export function AppLayout() {
           <Outlet />
         </main>
       </div>
+      <AsistenteGuia />
     </div>
   )
 }

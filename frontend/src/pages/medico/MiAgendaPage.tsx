@@ -41,17 +41,17 @@ export function MiAgendaPage() {
       className: 'text-right',
       celda: (cita) => (
         <div className="flex flex-wrap justify-end gap-2">
-          <Button variante="secundario" onClick={() => setDetalle(cita)}>Ver</Button>
+          <Button data-guia-id="btn-fila-agenda-ver" variante="secundario" onClick={() => setDetalle(cita)}>Ver</Button>
           {cita.modalidad === 'VIRTUAL' && cita.link_videollamada && cita.estado !== 'CANCELADA' && cita.estado !== 'NO_ASISTIO' && (
-            <Button onClick={() => window.open(`/sala-virtual/${cita.id}`, '_blank', 'noopener,noreferrer')}>
+            <Button data-guia-id="btn-fila-agenda-sala" onClick={() => window.open(`/sala-virtual/${cita.id}`, '_blank', 'noopener,noreferrer')}>
               Ingresar a la sala virtual
             </Button>
           )}
           {cita.estado === 'CONFIRMADA' && !cita.tiene_consulta && (
-            <Button onClick={() => setCitaAAtender(cita)}>Atender</Button>
+            <Button data-guia-id="btn-fila-agenda-atender" onClick={() => setCitaAAtender(cita)}>Atender</Button>
           )}
           {cita.consulta_id !== null && (
-            <Button variante="secundario" onClick={() => setConsultaDetalle(cita.consulta_id)}>Ver consulta</Button>
+            <Button data-guia-id="btn-fila-agenda-consulta" variante="secundario" onClick={() => setConsultaDetalle(cita.consulta_id)}>Ver consulta</Button>
           )}
         </div>
       ),
@@ -69,6 +69,7 @@ export function MiAgendaPage() {
 
       <div className="grid gap-3 sm:grid-cols-2">
         <input
+          data-guia-id="filtro-agenda-fecha"
           aria-label="Fecha de la agenda"
           type="date"
           value={fecha}
