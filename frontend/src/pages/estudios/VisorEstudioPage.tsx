@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { estudiosMedicosApi } from '@/api/modules/estudiosMedicos'
+import { AsistenteGuia } from '@/components/asistente/AsistenteGuia'
 import { VisorEstudioMedico } from '@/components/estudios/VisorEstudioMedico'
 import { Button } from '@/components/ui/Button'
 import { Field } from '@/components/ui/Field'
@@ -123,7 +124,7 @@ export function VisorEstudioPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variante="secundario" disabled={!blobUrl} onClick={descargarArchivo}>
+          <Button data-guia-id="btn-visor-descargar" variante="secundario" disabled={!blobUrl} onClick={descargarArchivo}>
             Descargar
           </Button>
           <Button variante="secundario" onClick={cerrarVentana}>
@@ -186,7 +187,7 @@ export function VisorEstudioPage() {
                 />
               </Field>
               <div className="flex justify-end">
-                <Button type="submit" cargando={guardarLectura.isPending}>
+                <Button data-guia-id="btn-visor-guardar-lectura" type="submit" cargando={guardarLectura.isPending}>
                   Guardar lectura
                 </Button>
               </div>
@@ -200,6 +201,7 @@ export function VisorEstudioPage() {
           </aside>
         )}
       </main>
+      <AsistenteGuia />
     </div>
   )
 }

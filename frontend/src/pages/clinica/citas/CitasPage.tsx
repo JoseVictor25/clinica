@@ -64,21 +64,21 @@ export function CitasPage() {
       className: 'text-right',
       celda: (cita) => (
         <div className="flex flex-wrap justify-end gap-2">
-          <Button variante="secundario" onClick={() => setDetalle(cita)}>Ver</Button>
+          <Button data-guia-id="btn-fila-cita-ver" variante="secundario" onClick={() => setDetalle(cita)}>Ver</Button>
           {admin && (
-            <Button variante="secundario" onClick={() => setCitaEstudios(cita)}>Estudios</Button>
+            <Button data-guia-id="btn-fila-cita-estudios" variante="secundario" onClick={() => setCitaEstudios(cita)}>Estudios</Button>
           )}
           {cita.estado === 'PROGRAMADA' && (
-            <Button variante="secundario" onClick={() => setAccion({ tipo: 'confirmar', cita })}>
+            <Button data-guia-id="btn-fila-cita-confirmar" variante="secundario" onClick={() => setAccion({ tipo: 'confirmar', cita })}>
               Confirmar
             </Button>
           )}
           {(cita.estado === 'PROGRAMADA' || cita.estado === 'CONFIRMADA') && (
             <>
-              <Button variante="secundario" onClick={() => setReprogramando(cita)}>
+              <Button data-guia-id="btn-fila-cita-reprogramar" variante="secundario" onClick={() => setReprogramando(cita)}>
                 Reprogramar
               </Button>
-              <Button variante="peligro" onClick={() => setAccion({ tipo: 'cancelar', cita })}>
+              <Button data-guia-id="btn-fila-cita-cancelar" variante="peligro" onClick={() => setAccion({ tipo: 'cancelar', cita })}>
                 Cancelar
               </Button>
             </>
@@ -95,11 +95,11 @@ export function CitasPage() {
           <h1 className="text-2xl font-semibold">Citas</h1>
           <p className="mt-1 text-sm text-slate-600">Programa y consulta las citas de tu clínica.</p>
         </div>
-        <Button onClick={() => setFormulario(true)}>Nueva cita</Button>
+        <Button data-guia-id="btn-nueva-cita" onClick={() => setFormulario(true)}>Nueva cita</Button>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <input aria-label="Filtrar por fecha" type="date" value={fecha} className={inputClass} onChange={(e) => { setFecha(e.target.value); setPage(1) }} />
-        <select aria-label="Filtrar por estado" value={estado} className={inputClass} onChange={(e) => { setEstado(e.target.value as EstadoCita | ''); setPage(1) }}>
+        <select data-guia-id="filtro-citas-estado" aria-label="Filtrar por estado" value={estado} className={inputClass} onChange={(e) => { setEstado(e.target.value as EstadoCita | ''); setPage(1) }}>
           <option value="">Todos los estados</option>
           {ESTADOS_CITA.map((item) => <option key={item.valor} value={item.valor}>{item.etiqueta}</option>)}
         </select>

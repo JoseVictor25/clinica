@@ -76,6 +76,7 @@ function BotonPantallaCompleta({
 }) {
   return (
     <button
+      data-guia-id="btn-visor-pantalla-completa"
       type="button"
       className={`${claseBotonOscuro(activo)} ml-auto inline-flex items-center gap-1.5`}
       onClick={onClick}
@@ -299,6 +300,7 @@ function VisorDicom({
     >
       <div className="flex flex-wrap items-center gap-2 border-b border-slate-800 bg-slate-900 px-3 py-2">
         <button
+          data-guia-id="btn-visor-contraste"
           type="button"
           className={claseBotonOscuro(herramienta === 'WindowLevel')}
           onClick={() => seleccionarHerramienta('WindowLevel')}
@@ -306,6 +308,7 @@ function VisorDicom({
           Contraste (W/L)
         </button>
         <button
+          data-guia-id="btn-visor-zoom"
           type="button"
           className={claseBotonOscuro(herramienta === 'ZoomAndPan')}
           onClick={() => seleccionarHerramienta('ZoomAndPan')}
@@ -313,6 +316,7 @@ function VisorDicom({
           Zoom / Mover
         </button>
         <button
+          data-guia-id="btn-visor-cortes"
           type="button"
           className={claseBotonOscuro(herramienta === 'Scroll')}
           disabled={cortes.total <= 1}
@@ -321,6 +325,7 @@ function VisorDicom({
           Cortes (Scroll)
         </button>
         <button
+          data-guia-id="btn-visor-regla"
           type="button"
           className={claseBotonOscuro(herramienta === 'Draw')}
           onClick={() => seleccionarHerramienta('Draw')}
@@ -328,6 +333,7 @@ function VisorDicom({
           Regla / Medición
         </button>
         <button
+          data-guia-id="btn-visor-restablecer"
           type="button"
           className={claseBotonOscuro(false)}
           onClick={restablecerVista}

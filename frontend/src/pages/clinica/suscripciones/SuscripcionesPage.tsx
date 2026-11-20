@@ -178,7 +178,7 @@ export function SuscripcionesPage() {
     },
     {
       encabezado: 'Detalle',
-      celda: (fila) => <Button variante="secundario" onClick={() => setDetalleId(fila.id)}>Consultar</Button>,
+      celda: (fila) => <Button data-guia-id="btn-fila-suscripcion-consultar" variante="secundario" onClick={() => setDetalleId(fila.id)}>Consultar</Button>,
     },
   ]
 
@@ -197,6 +197,7 @@ export function SuscripcionesPage() {
         </h1>
 
         <Button
+          data-guia-id="btn-suscripcion-actualizar"
           variante="secundario"
           cargando={actualizar.isPending}
           disabled={cancelar.isPending || formulario !== null}
@@ -291,6 +292,7 @@ export function SuscripcionesPage() {
           <div className="flex flex-wrap gap-2">
             {puedeContratar && (
               <Button
+                data-guia-id="btn-suscripcion-contratar"
                 disabled={cancelar.isPending}
                 onClick={() => setFormulario({ modo: 'contratar' })}
               >
@@ -301,6 +303,7 @@ export function SuscripcionesPage() {
             {activa.isSuccess && actual && actual.fecha_fin >= hoy && (
               <>
                 <Button
+                  data-guia-id="btn-suscripcion-renovar"
                   disabled={cancelar.isPending}
                   onClick={() =>
                     setFormulario({
@@ -313,6 +316,7 @@ export function SuscripcionesPage() {
                 </Button>
 
                 <Button
+                  data-guia-id="btn-suscripcion-cambiar-plan"
                   variante="secundario"
                   disabled={cancelar.isPending}
                   onClick={() =>
@@ -329,6 +333,7 @@ export function SuscripcionesPage() {
 
             {activa.isSuccess && actual && (
               <Button
+                data-guia-id="btn-suscripcion-cancelar"
                 variante="peligro"
                 disabled={cancelar.isPending}
                 onClick={() => setACancelar(actual)}
@@ -354,6 +359,7 @@ export function SuscripcionesPage() {
           </label>
           <select
             id="filtro-estado"
+            data-guia-id="filtro-suscripciones-estado"
             className={inputClass}
             value={estado}
             onChange={(evento) => {

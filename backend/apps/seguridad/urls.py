@@ -3,6 +3,7 @@
 from django.urls import path
 from rest_framework.routers import DefaultRouter
 
+from .asistente_views import AsistenteConsultarView
 from .views import (
     CambiarPasswordView,
     LoginView,
@@ -28,6 +29,11 @@ urlpatterns = [
         "auth/cambiar-password/",
         CambiarPasswordView.as_view(),
         name="auth-cambiar-password",
+    ),
+    path(
+        "asistente/consultar/",
+        AsistenteConsultarView.as_view(),
+        name="asistente-consultar",
     ),
     *router.urls,
 ]
