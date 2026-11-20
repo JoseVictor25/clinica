@@ -24,6 +24,7 @@ from apps.core.permissions import (
 )
 from apps.core.api_exceptions import DatosInvalidos
 from apps.core.querysets import queryset_tenant
+from apps.notificaciones.services import programar_notificacion_cita
 
 from .models import Cita, Consulta, EstadoCita
 from .serializers import (
@@ -403,6 +404,7 @@ class CitaViewSet(
         )
         entrada.is_valid(raise_exception=True)
         cita = crear_cita(request.user.clinica, entrada.validated_data)
+        programar_notificacion_cita(cita_id=cita.pk, evento="programada")
         return Response(
             CitaSerializer(cita).data,
             status=status.HTTP_201_CREATED,
@@ -429,6 +431,7 @@ class CitaViewSet(
             clinica=request.user.clinica,
             cita_id=pk,
         )
+        programar_notificacion_cita(cita_id=cita.pk, evento="confirmada")
         return Response(CitaSerializer(cita).data)
 
     @extend_schema(
@@ -448,6 +451,7 @@ class CitaViewSet(
             clinica=request.user.clinica,
             cita_id=pk,
         )
+        programar_notificacion_cita(cita_id=cita.pk, evento="cancelada")
         return Response(CitaSerializer(cita).data)
 
     @extend_schema(
@@ -471,6 +475,7 @@ class CitaViewSet(
             cita_id=pk,
             **entrada.validated_data,
         )
+        programar_notificacion_cita(cita_id=cita.pk, evento="reprogramada")
         return Response(CitaSerializer(cita).data)
 
     @extend_schema(

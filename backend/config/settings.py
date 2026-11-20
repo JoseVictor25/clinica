@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     "apps.personal",
     "apps.pacientes",
     "apps.atencion",
+    "apps.notificaciones",
     "apps.ambulancias",
 ]
 
@@ -273,4 +274,11 @@ SUPABASE_SECRET_KEY = config("SUPABASE_SECRET_KEY", default="").strip()
 SUPABASE_STORAGE_BUCKET = config(
     "SUPABASE_STORAGE_BUCKET",
     default="estudios-medicos",
+).strip()
+
+# --- Notificaciones push (Firebase Cloud Messaging) -------------------------
+FCM_ENABLED = config("FCM_ENABLED", default=False, cast=bool)
+FCM_SERVICE_ACCOUNT_FILE = config(
+    "FCM_SERVICE_ACCOUNT_FILE",
+    default=config("GOOGLE_APPLICATION_CREDENTIALS", default=""),
 ).strip()

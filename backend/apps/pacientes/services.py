@@ -264,10 +264,14 @@ def obtener_historial_consultas(*, usuario, clinica, paciente_id, filtros):
     )
     from apps.atencion.services import obtener_medico_usuario
     from apps.personal.models import Medico
+    from .acceso import pacientes_accesibles_para_usuario
 
     _, medico_autenticado = obtener_medico_usuario(usuario=usuario, clinica=clinica)
     try:
-        paciente = Paciente.all_objects.get(pk=paciente_id, clinica=clinica)
+        pacientes = Paciente.all_objects.filter(clinica=clinica)
+        paciente = pacientes_accesibles_para_usuario(
+            pacientes, usuario
+        ).get(pk=paciente_id)
     except Paciente.DoesNotExist as exc:
         raise RecursoNoEncontrado(
             "Paciente no encontrado.", codigo="no_encontrado"
