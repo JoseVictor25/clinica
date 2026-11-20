@@ -62,9 +62,13 @@ def crear_cuenta_para_personal(*, clinica, personal_id, datos, roles):
         )
         personal.usuario = usuario
         personal.save(update_fields=["usuario"])
-        Paciente.all_objects.filter(
-            clinica=clinica, ci=personal.ci
-        ).update(email=usuario.email)
+        paciente = (
+            Paciente.all_objects.select_for_update()
+            .filter(clinica=clinica, ci=personal.ci)
+            .first()
+        )
+        if paciente is not None:
+            vincular_paciente_a_cuenta(paciente, usuario)
         return personal
 
 
@@ -147,3 +151,17 @@ def asegurar_rol_paciente(usuario, clinica):
             "El rol Paciente no está disponible.", codigo="rol_paciente_no_disponible"
         )
     UsuarioRol.all_objects.get_or_create(usuario=usuario, rol=rol)
+
+
+def vincular_paciente_a_cuenta(paciente, usuario):
+    """Comparte la cuenta laboral con el perfil paciente de la misma identidad."""
+    if paciente.usuario_id not in (None, usuario.pk):
+        raise Conflicto(
+            "El paciente ya está vinculado a otra cuenta.",
+            codigo="paciente_ya_vinculado",
+        )
+    asegurar_rol_paciente(usuario, paciente.clinica)
+    paciente.usuario = usuario
+    paciente.email = usuario.email
+    paciente.save(update_fields=["usuario", "email"])
+    return paciente

@@ -110,6 +110,12 @@ def test_medico_vinculado_consulta_solo_su_agenda(
 def test_fecha_predeterminada_usa_timezone_localdate(
     medico_a, suscripcion_amplia, cita_agenda
 ):
+    # localdate es compartido por Django; deja vigente la suscripción en FECHA
+    # para que la prueba mida el default de agenda, no el vencimiento del plan.
+    suscripcion_amplia.fecha_inicio = FECHA - timedelta(days=1)
+    suscripcion_amplia.fecha_fin = FECHA + timedelta(days=30)
+    suscripcion_amplia.save(update_fields=["fecha_inicio", "fecha_fin"])
+
     with patch("apps.atencion.views.timezone.localdate", return_value=FECHA) as localdate:
         respuesta = cliente_autenticado(medico_a).get(URL)
 

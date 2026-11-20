@@ -1,12 +1,13 @@
 import pytest
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 
 from django.utils import timezone
 
+from apps.atencion.models import Cita, EstadoCita
 from apps.core.seed_data import ROL_CONDUCTOR, ROL_PACIENTE, ROL_RECEPCIONISTA
 from apps.pacientes.models import Paciente
 from apps.personal.models import Especialidad, HorarioAtencion, Medico, Personal
-from tests.api.helpers import crear_usuario_con_rol
+from tests.api.helpers import crear_personal_medico, crear_usuario_con_rol
 
 
 @pytest.fixture(autouse=True)
@@ -43,6 +44,40 @@ def datos_paciente():
 @pytest.fixture
 def paciente_a(clinica_configurada, datos_paciente):
     return Paciente.all_objects.create(clinica=clinica_configurada, **datos_paciente)
+
+
+@pytest.fixture
+def otorgar_acceso_medico_a_paciente(clinica_configurada, medico_a):
+    """Crea una cita activa que habilita al médico a consultar esa ficha."""
+    personal = Personal.all_objects.filter(
+        clinica=clinica_configurada,
+        usuario=medico_a,
+    ).first()
+    if personal is None:
+        personal, medico = crear_personal_medico(
+            clinica_configurada,
+            medico_a,
+            ci="MED-ANTECEDENTES-S2",
+            colegiatura="COL-ANTECEDENTES-S2",
+        )
+    else:
+        medico = Medico.all_objects.get(personal=personal)
+
+    def otorgar(paciente):
+        fecha_cita = date(2026, 11, 16) + timedelta(
+            days=Cita.all_objects.filter(medico=medico).count()
+        )
+        return Cita.all_objects.create(
+            clinica=clinica_configurada,
+            medico=medico,
+            paciente=paciente,
+            fecha=fecha_cita,
+            hora=time(8),
+            estado=EstadoCita.CONFIRMADA,
+            motivo="Acceso clínico de prueba",
+        )
+
+    return otorgar
 
 
 @pytest.fixture

@@ -10,6 +10,7 @@ from apps.core.api_exceptions import (
 )
 from apps.core.identidad import CAMPOS_IDENTIDAD, copiar_identidad
 from apps.personal.models import Personal
+from apps.seguridad.cuentas_services import vincular_paciente_a_cuenta
 
 from .models import Alergia, Enfermedad, HistoriaClinica, Paciente
 
@@ -63,6 +64,9 @@ def crear_paciente(clinica, datos):
                 )
         except IntegrityError as exc:
             raise _conflicto_ci() from exc
+
+        if personal is not None and personal.usuario_id:
+            vincular_paciente_a_cuenta(paciente, personal.usuario)
 
         HistoriaClinica.all_objects.create(paciente=paciente)
         return paciente
@@ -264,10 +268,14 @@ def obtener_historial_consultas(*, usuario, clinica, paciente_id, filtros):
     )
     from apps.atencion.services import obtener_medico_usuario
     from apps.personal.models import Medico
+    from .acceso import pacientes_accesibles_para_usuario
 
     _, medico_autenticado = obtener_medico_usuario(usuario=usuario, clinica=clinica)
     try:
-        paciente = Paciente.all_objects.get(pk=paciente_id, clinica=clinica)
+        pacientes = Paciente.all_objects.filter(clinica=clinica)
+        paciente = pacientes_accesibles_para_usuario(
+            pacientes, usuario
+        ).get(pk=paciente_id)
     except Paciente.DoesNotExist as exc:
         raise RecursoNoEncontrado(
             "Paciente no encontrado.", codigo="no_encontrado"

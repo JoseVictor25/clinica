@@ -30,6 +30,7 @@ from apps.core.permissions import (
     TieneSuscripcionVigente,
 )
 from apps.core.querysets import queryset_tenant
+from .acceso import pacientes_accesibles_para_usuario
 from apps.personal.models import Personal
 from apps.seguridad.cuentas_serializers import (
     BuscarCuentasElegiblesSerializer,
@@ -248,7 +249,9 @@ class PacienteViewSet(viewsets.ModelViewSet):
         ]
 
     def get_queryset(self):
-        queryset = queryset_tenant(Paciente, self.request).select_related(
+        queryset = queryset_tenant(Paciente, self.request)
+        queryset = pacientes_accesibles_para_usuario(queryset, self.request.user)
+        queryset = queryset.select_related(
             "usuario"
         ).prefetch_related("usuario__roles_asignados__rol")
 
@@ -549,7 +552,9 @@ class EnfermedadViewSet(
     def _paciente(self):
         if not hasattr(self, "_paciente_cache"):
             self._paciente_cache = get_object_or_404(
-                queryset_tenant(Paciente, self.request),
+                pacientes_accesibles_para_usuario(
+                    queryset_tenant(Paciente, self.request), self.request.user
+                ),
                 pk=self.kwargs["paciente_id"],
             )
         return self._paciente_cache
@@ -753,7 +758,9 @@ class AlergiaViewSet(
     def _paciente(self):
         if not hasattr(self, "_paciente_cache"):
             self._paciente_cache = get_object_or_404(
-                queryset_tenant(Paciente, self.request),
+                pacientes_accesibles_para_usuario(
+                    queryset_tenant(Paciente, self.request), self.request.user
+                ),
                 pk=self.kwargs["paciente_id"],
             )
         return self._paciente_cache

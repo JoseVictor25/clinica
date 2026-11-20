@@ -76,6 +76,34 @@ def test_flujo_clinico_completo_hasta_portal(
     historia.observaciones_generales = "Antecedentes revisados en la demostración."
     historia.save(update_fields=["observaciones_generales"])
 
+    # S2-05/S2-06: reservar primero para habilitar el acceso clínico del médico.
+    parametros = {
+        "paciente_id": paciente_id,
+        "medico_id": medico.pk,
+        "fecha": FECHA_ATENCION.isoformat(),
+    }
+    disponibilidad = recepcion.get("/api/v1/citas/disponibilidad/", parametros)
+    assert disponibilidad.status_code == 200, disponibilidad.data
+    assert disponibilidad.data["horarios"] == ["08:00", "08:30", "09:00", "09:30"]
+    hora_elegida = disponibilidad.data["horarios"][0]
+
+    cita_respuesta = recepcion.post(
+        "/api/v1/citas/",
+        {
+            **parametros,
+            "hora": hora_elegida,
+            "motivo": "Control integral del Sprint 2",
+        },
+        format="json",
+    )
+    assert cita_respuesta.status_code == 201, cita_respuesta.data
+    cita_id = cita_respuesta.data["id"]
+    assert cita_respuesta.data["estado"] == EstadoCita.PROGRAMADA
+    assert cita_respuesta.data["paciente_id"] == paciente_id
+    assert cita_respuesta.data["medico_id"] == medico.pk
+    posterior = recepcion.get("/api/v1/citas/disponibilidad/", parametros)
+    assert hora_elegida not in posterior.data["horarios"]
+
     # S2-03/S2-04: antecedentes registrados por el médico.
     enfermedad_respuesta = medico_cliente.post(
         f"/api/v1/pacientes/{paciente_id}/enfermedades/",
@@ -114,34 +142,6 @@ def test_flujo_clinico_completo_hasta_portal(
     )
     assert enfermedad_rechazada.status_code == 403
     assert not Enfermedad.all_objects.filter(nombre="No autorizada").exists()
-
-    # S2-05/S2-06: disponibilidad real y reserva del primer bloque.
-    parametros = {
-        "paciente_id": paciente_id,
-        "medico_id": medico.pk,
-        "fecha": FECHA_ATENCION.isoformat(),
-    }
-    disponibilidad = recepcion.get("/api/v1/citas/disponibilidad/", parametros)
-    assert disponibilidad.status_code == 200, disponibilidad.data
-    assert disponibilidad.data["horarios"] == ["08:00", "08:30", "09:00", "09:30"]
-    hora_elegida = disponibilidad.data["horarios"][0]
-
-    cita_respuesta = recepcion.post(
-        "/api/v1/citas/",
-        {
-            **parametros,
-            "hora": hora_elegida,
-            "motivo": "Control integral del Sprint 2",
-        },
-        format="json",
-    )
-    assert cita_respuesta.status_code == 201, cita_respuesta.data
-    cita_id = cita_respuesta.data["id"]
-    assert cita_respuesta.data["estado"] == EstadoCita.PROGRAMADA
-    assert cita_respuesta.data["paciente_id"] == paciente_id
-    assert cita_respuesta.data["medico_id"] == medico.pk
-    posterior = recepcion.get("/api/v1/citas/disponibilidad/", parametros)
-    assert hora_elegida not in posterior.data["horarios"]
 
     # S2-07/S2-08: confirmación y aparición en la agenda propia.
     confirmada = recepcion.post(

@@ -46,11 +46,14 @@ services:
       DB_PORT: 5432
       COLLECT_STATIC: "1"
       TRUST_PROXY_HEADERS: "True"
+      FCM_SERVICE_ACCOUNT_FILE: ${FCM_SERVICE_ACCOUNT_FILE:-/run/secrets/firebase/firebase-admin.json}
     depends_on:
       db:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+    volumes:
+      - ./backend/secrets:/run/secrets/firebase:ro
     healthcheck:
       test:
         - CMD
@@ -61,6 +64,27 @@ services:
       timeout: 5s
       retries: 10
       start_period: 20s
+
+  reminders:
+    build:
+      context: ./backend
+      target: production
+    init: true
+    restart: unless-stopped
+    env_file: .env.docker
+    environment:
+      DEBUG: "False"
+      DB_HOST: db
+      DB_PORT: 5432
+      FCM_SERVICE_ACCOUNT_FILE: ${FCM_SERVICE_ACCOUNT_FILE:-/run/secrets/firebase/firebase-admin.json}
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - ./backend/secrets:/run/secrets/firebase:ro
+    command: ["python", "manage.py", "procesar_recordatorios_citas"]
 
   frontend:
     build:

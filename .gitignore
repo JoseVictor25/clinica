@@ -6,6 +6,9 @@ __pycache__/
 .env
 .env.docker
 .env.ec2
+backend/secrets/
+**/google-services.json
+**/GoogleService-Info.plist
 db.sqlite3
 .pytest_cache/
 # Node / React

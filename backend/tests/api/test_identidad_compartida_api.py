@@ -6,6 +6,8 @@ import pytest
 
 from apps.pacientes.models import Paciente
 from apps.personal.models import Personal
+from apps.core.seed_data import ROL_PACIENTE, ROL_RECEPCIONISTA
+from apps.seguridad.models import UsuarioRol
 
 from .helpers import cliente_autenticado, crear_usuario_con_rol
 
@@ -70,6 +72,7 @@ def test_crear_paciente_reutiliza_identidad_del_personal(
     usuario = crear_usuario_con_rol(
         admin_a.clinica,
         "luis_identidad",
+        ROL_RECEPCIONISTA,
         email="luis.verificado@example.com",
     )
     Personal.all_objects.create(
@@ -101,6 +104,12 @@ def test_crear_paciente_reutiliza_identidad_del_personal(
     assert respuesta.data["apellido"] == "Verificado"
     assert respuesta.data["telefono"] == "70000002"
     assert respuesta.data["email"] == "luis.verificado@example.com"
+    paciente = Paciente.all_objects.get(clinica=admin_a.clinica, ci="CI-COMPARTIDA-2")
+    assert paciente.usuario_id == usuario.pk
+    assert set(
+        UsuarioRol.all_objects.filter(usuario=usuario)
+        .values_list("rol__nombre", flat=True)
+    ) == {ROL_RECEPCIONISTA, ROL_PACIENTE}
 
 
 @pytest.mark.django_db
