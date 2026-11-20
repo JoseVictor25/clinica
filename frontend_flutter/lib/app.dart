@@ -4,6 +4,7 @@ import 'core/session/session_controller.dart';
 import 'features/auth/login_screen.dart';
 import 'features/doctor/doctor_home_screen.dart';
 import 'features/patient/patient_home_screen.dart';
+import 'features/shared/role_selection_screen.dart';
 
 class ClinicaApp extends StatelessWidget {
   const ClinicaApp({
@@ -38,6 +39,21 @@ class ClinicaApp extends StatelessWidget {
           }
           final profile = session.profile;
           if (profile == null) return LoginScreen(session: session);
+          if (profile.isDoctor && profile.isPatient) {
+            return RoleSelectionScreen(
+              onSelectDoctor: () => Navigator.of(context).pushReplacement(
+                MaterialPageRoute<void>(
+                  builder: (_) => DoctorHomeScreen(session: session),
+                ),
+              ),
+              onSelectPatient: () => Navigator.of(context).pushReplacement(
+                MaterialPageRoute<void>(
+                  builder: (_) => PatientHomeScreen(session: session),
+                ),
+              ),
+              username: profile.username,
+            );
+          }
           if (profile.isDoctor) {
             return DoctorHomeScreen(session: session);
           }

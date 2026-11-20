@@ -43,6 +43,7 @@ dependencies:
   flutter_dotenv: ^6.0.2
   intl: ^0.20.3
   url_launcher: ^6.3.2
+  daily_flutter: ^0.41.0
 
 dev_dependencies:
   flutter_test:

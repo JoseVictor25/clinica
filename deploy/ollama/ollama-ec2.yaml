@@ -1,0 +1,123 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Ollama privado para el asistente de Clinicas SaaS; acceso solo desde el SG del backend.
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC compartida con la instancia EC2 que ejecuta el backend.
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: Subred con salida a Internet/NAT para instalar Ollama y descargar el modelo.
+  BackendSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: Security Group de la instancia de la clínica; único origen permitido al API Ollama.
+  InstanceType:
+    Type: String
+    Default: m7i.xlarge
+    AllowedValues:
+      - m7i.xlarge
+      - m7i.2xlarge
+      - g6.xlarge
+    Description: CPU para baja carga o GPU si la instancia está disponible en tu región.
+  OllamaModel:
+    Type: String
+    Default: qwen2.5:7b
+    AllowedPattern: '[A-Za-z0-9._:-]+'
+    Description: Modelo descargado durante el aprovisionamiento.
+
+Resources:
+  OllamaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Ollama privado; API solo desde el backend de Clinicas SaaS.
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - Description: Backend Django dentro de la misma VPC
+          IpProtocol: tcp
+          FromPort: 11434
+          ToPort: 11434
+          SourceSecurityGroupId: !Ref BackendSecurityGroupId
+      SecurityGroupEgress:
+        - IpProtocol: '-1'
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: clinica-ollama-private
+
+  OllamaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+
+  OllamaInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref OllamaRole
+
+  OllamaInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Sub '{{resolve:ssm:/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id}}'
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref OllamaInstanceProfile
+      NetworkInterfaces:
+        - DeviceIndex: '0'
+          AssociatePublicIpAddress: false
+          DeleteOnTermination: true
+          SubnetId: !Ref SubnetId
+          GroupSet:
+            - !Ref OllamaSecurityGroup
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeType: gp3
+            VolumeSize: 80
+            Encrypted: true
+            DeleteOnTermination: false
+      MetadataOptions:
+        HttpTokens: required
+        HttpEndpoint: enabled
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -euxo pipefail
+          apt-get update
+          apt-get install -y curl ca-certificates
+          curl -fsSL https://ollama.com/install.sh | sh
+          mkdir -p /etc/systemd/system/ollama.service.d
+          cat > /etc/systemd/system/ollama.service.d/override.conf <<'EOF'
+          [Service]
+          Environment="OLLAMA_HOST=0.0.0.0:11434"
+          Environment="OLLAMA_KEEP_ALIVE=30m"
+          EOF
+          systemctl daemon-reload
+          systemctl enable --now ollama
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null; then break; fi
+            sleep 5
+          done
+          curl -fsS http://127.0.0.1:11434/api/tags >/dev/null
+          ollama pull '${OllamaModel}'
+      Tags:
+        - Key: Name
+          Value: clinica-ollama
+
+Outputs:
+  InstanceId:
+    Description: Administrar mediante AWS Systems Manager Session Manager.
+    Value: !Ref OllamaInstance
+  PrivateIp:
+    Description: Usar en OLLAMA_BASE_URL del .env.ec2 del backend.
+    Value: !GetAtt OllamaInstance.PrivateIp
+  BaseUrl:
+    Description: API Ollama privada; no publicar este puerto en Internet.
+    Value: !Sub 'http://${OllamaInstance.PrivateIp}:11434'

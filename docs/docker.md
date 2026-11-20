@@ -120,5 +120,12 @@ Los valores `clinicas` y `clinicas_db` del respaldo deben coincidir con
 | `migrate` | Aplica migraciones y termina | Aplica migraciones y termina |
 | `backend` | `runserver` con codigo montado | Gunicorn, WhiteNoise y usuario sin privilegios |
 | `frontend` | Vite con recarga | Build estatico servido por Nginx |
+| `reminders` | Recordatorios de citas y push | Recordatorios de citas y push |
+| `proxy` | No incluido | Caddy con HTTPS automatico en EC2 |
 | `seed` | Herramienta opcional | Herramienta opcional |
 | `test-backend` | Suite pytest opcional | No se incluye |
+
+Ollama no se instala como servicio de este Compose de produccion. Para ejecutarlo
+en una instancia privada independiente, sigue [ollama-ec2.md](ollama-ec2.md).
+La app movil tampoco se sirve desde EC2: el proceso de firma y distribucion de
+Flutter para Play esta en [app-movil-play.md](app-movil-play.md).

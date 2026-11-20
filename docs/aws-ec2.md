@@ -5,6 +5,10 @@ EC2. Solo Caddy publica puertos. PostgreSQL y Gunicorn permanecen en redes priva
 de Docker. Caddy obtiene y renueva certificados TLS automaticamente cuando se usa
 un dominio.
 
+Ollama puede correr en una segunda EC2 privada; consulta [ollama-ec2.md](ollama-ec2.md).
+La app Flutter se distribuye separadamente desde Google Play; consulta
+[app-movil-play.md](app-movil-play.md).
+
 ## 1. Crear la instancia
 
 Configuracion recomendada para una entrega o entorno pequeno:

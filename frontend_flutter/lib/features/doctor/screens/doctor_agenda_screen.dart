@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/models/page_result.dart';
 import '../../../core/network/api_client.dart';
@@ -10,6 +9,7 @@ import '../doctor_theme.dart';
 import 'doctor_consultation_detail_screen.dart';
 import 'doctor_consultation_form_screen.dart';
 import 'doctor_patient_history_screen.dart';
+import '../../shared/telemedicine_call_screen.dart';
 
 class DoctorAgendaScreen extends StatefulWidget {
   const DoctorAgendaScreen({
@@ -259,7 +259,8 @@ class _DoctorAgendaScreenState extends State<DoctorAgendaScreen> {
                 padding: const EdgeInsets.fromLTRB(15, 2, 15, 20),
                 itemCount: items.length,
                 separatorBuilder: (context, index) => const SizedBox(height: 9),
-                itemBuilder: (context, index) => _appointmentCard(items[index]),
+                itemBuilder: (context, index) =>
+                    _appointmentCard(context, items[index]),
               ),
             );
           },
@@ -268,7 +269,7 @@ class _DoctorAgendaScreenState extends State<DoctorAgendaScreen> {
     ],
   );
 
-  Widget _appointmentCard(Map<String, dynamic> item) {
+  Widget _appointmentCard(BuildContext context, Map<String, dynamic> item) {
     final state = item['estado']?.toString() ?? '';
     final attended = state == 'ATENDIDA';
     final historyId = item['paciente_id'] is num
@@ -390,9 +391,17 @@ class _DoctorAgendaScreenState extends State<DoctorAgendaScreen> {
                   } else if (value == 'video') {
                     final link = item['link_videollamada']?.toString() ?? '';
                     if (link.isNotEmpty) {
-                      launchUrl(
-                        Uri.parse(link),
-                        mode: LaunchMode.externalApplication,
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => TelemedicineCallScreen(
+                            roomUrl: link,
+                            displayName:
+                                widget.session.profile?.username ?? 'Médico',
+                            otherParticipantName:
+                                item['paciente_nombre']?.toString() ??
+                                'Paciente',
+                          ),
+                        ),
                       );
                     }
                   }
@@ -408,7 +417,9 @@ class _DoctorAgendaScreenState extends State<DoctorAgendaScreen> {
                   ),
                   if (item['modalidad'] == 'VIRTUAL' &&
                       (item['link_videollamada']?.toString().isNotEmpty ??
-                          false))
+                          false) &&
+                      state != 'CANCELADA' &&
+                      state != 'NO_ASISTIO')
                     const PopupMenuItem(
                       value: 'video',
                       child: Text('Abrir sala virtual'),

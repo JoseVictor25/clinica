@@ -7,7 +7,11 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Frontend Flutter</string>
+	<string>Clínica</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Clínica necesita la cámara para atender tus citas por videollamada.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Clínica necesita el micrófono para que puedas conversar durante la videollamada.</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +19,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>frontend_flutter</string>
+	<string>Clínica</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

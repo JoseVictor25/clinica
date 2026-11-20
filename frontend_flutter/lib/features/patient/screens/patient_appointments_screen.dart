@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/models/page_result.dart';
 import '../../../core/notifications/notification_inbox.dart';
 import '../clinic_theme.dart';
 import '../data/patient_api.dart';
 import '../widgets/patient_portal_error.dart';
+import '../../shared/telemedicine_call_screen.dart';
 
 class PatientAppointmentsScreen extends StatefulWidget {
   const PatientAppointmentsScreen({
@@ -192,7 +192,7 @@ Widget _appointmentCard(BuildContext context, Map<String, dynamic> item) {
       onTap: () => showModalBottomSheet<void>(
         context: context,
         isScrollControlled: true,
-        builder: (_) => _appointmentDetails(item, physician),
+        builder: (_) => _appointmentDetails(context, item, physician),
       ),
       child: Padding(
         padding: const EdgeInsets.all(17),
@@ -265,6 +265,7 @@ Widget _appointmentCard(BuildContext context, Map<String, dynamic> item) {
 }
 
 Widget _appointmentDetails(
+  BuildContext context,
   Map<String, dynamic> item,
   Map<String, dynamic> physician,
 ) => SafeArea(
@@ -290,9 +291,15 @@ Widget _appointmentDetails(
             (item['link_videollamada'] as String).isNotEmpty)
           FilledButton.icon(
             onPressed: statusAllowsRoom(item['estado'])
-                ? () => launchUrl(
-                    Uri.parse(item['link_videollamada'] as String),
-                    mode: LaunchMode.externalApplication,
+                ? () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => TelemedicineCallScreen(
+                        roomUrl: item['link_videollamada'] as String,
+                        displayName: 'Paciente',
+                        otherParticipantName:
+                            physician['nombre']?.toString() ?? 'Médico',
+                      ),
+                    ),
                   )
                 : null,
             icon: const Icon(Icons.video_call_outlined),
