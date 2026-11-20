@@ -226,7 +226,7 @@ export function GestionRecurso<T extends { id: number }>({ config }: { config: C
       <h1 className="text-2xl font-semibold text-slate-900">{config.titulo}</h1>
       <div className="flex gap-2">
         <Button variante="secundario" disabled={lista.isFetching} onClick={() => void lista.refetch()}>Actualizar</Button>
-        {gestionar && <Button disabled={Boolean(config.bloqueoFormulario)} onClick={() => setEditor({ modo: 'crear' })}>{config.nuevo}</Button>}
+        {gestionar && <Button data-guia-id={`btn-nuevo-${config.clave}`} disabled={Boolean(config.bloqueoFormulario)} onClick={() => setEditor({ modo: 'crear' })}>{config.nuevo}</Button>}
       </div>
     </div>
     {config.descripcion && <p className="text-sm text-slate-600">{config.descripcion}</p>}

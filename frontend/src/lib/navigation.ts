@@ -9,6 +9,7 @@ import { esAdminClinica, esAdminSistema, esMedico, esPaciente, puedeConsultarPac
 export interface ItemNav {
   etiqueta: string
   ruta: string
+  guiaId: string
   icono: LucideIcon
   visible: (usuario: Usuario) => boolean
 }
@@ -21,22 +22,22 @@ const miAgenda = (usuario: Usuario) => esMedico(usuario) && completo(usuario)
 const portalPaciente = (usuario: Usuario) => esPaciente(usuario) && completo(usuario)
 
 export const ITEMS_NAV: ItemNav[] = [
-  { etiqueta: 'Inicio', ruta: '/', icono: LayoutDashboard, visible: completo },
-  { etiqueta: 'Mi cuenta', ruta: '/cuenta', icono: UserRound, visible: () => true },
-  { etiqueta: 'Mi información', ruta: '/mi-informacion', icono: UserRound, visible: portalPaciente },
-  { etiqueta: 'Clínicas', ruta: '/sistema/clinicas', icono: Building2, visible: esAdminSistema },
-  { etiqueta: 'Planes', ruta: '/sistema/planes', icono: CreditCard, visible: esAdminSistema },
-  { etiqueta: 'Suscripciones', ruta: '/sistema/suscripciones', icono: CalendarCheck, visible: esAdminSistema },
-  { etiqueta: 'Mi clínica', ruta: '/mi-clinica', icono: Building2, visible: admin },
-  { etiqueta: 'Mi suscripción', ruta: '/suscripciones', icono: CalendarCheck, visible: esAdminClinica },
-  { etiqueta: 'Planes disponibles', ruta: '/planes', icono: CreditCard, visible: esAdminClinica },
-  { etiqueta: 'Usuarios', ruta: '/usuarios', icono: Users, visible: admin },
-  { etiqueta: 'Roles', ruta: '/roles', icono: ShieldCheck, visible: admin },
-  { etiqueta: 'Personal', ruta: '/personal', icono: Briefcase, visible: admin },
-  { etiqueta: 'Pacientes', ruta: '/pacientes', icono: Users, visible: pacientes },
-  { etiqueta: 'Citas', ruta: '/citas', icono: CalendarCheck, visible: citas },
-  { etiqueta: 'Mi agenda', ruta: '/mi-agenda', icono: CalendarCheck, visible: miAgenda },
-  { etiqueta: 'Especialidades', ruta: '/especialidades', icono: Stethoscope, visible: clinico },
-  { etiqueta: 'Médicos', ruta: '/medicos', icono: HeartPulse, visible: clinico },
-  { etiqueta: 'Horarios', ruta: '/horarios', icono: Clock, visible: clinico },
+  { etiqueta: 'Inicio', ruta: '/', guiaId: 'nav-inicio', icono: LayoutDashboard, visible: completo },
+  { etiqueta: 'Mi cuenta', ruta: '/cuenta', guiaId: 'nav-cuenta', icono: UserRound, visible: () => true },
+  { etiqueta: 'Mi información', ruta: '/mi-informacion', guiaId: 'nav-mi-informacion', icono: UserRound, visible: portalPaciente },
+  { etiqueta: 'Clínicas', ruta: '/sistema/clinicas', guiaId: 'nav-sistema-clinicas', icono: Building2, visible: esAdminSistema },
+  { etiqueta: 'Planes', ruta: '/sistema/planes', guiaId: 'nav-sistema-planes', icono: CreditCard, visible: esAdminSistema },
+  { etiqueta: 'Suscripciones', ruta: '/sistema/suscripciones', guiaId: 'nav-sistema-suscripciones', icono: CalendarCheck, visible: esAdminSistema },
+  { etiqueta: 'Mi clínica', ruta: '/mi-clinica', guiaId: 'nav-mi-clinica', icono: Building2, visible: admin },
+  { etiqueta: 'Mi suscripción', ruta: '/suscripciones', guiaId: 'nav-suscripciones', icono: CalendarCheck, visible: esAdminClinica },
+  { etiqueta: 'Planes disponibles', ruta: '/planes', guiaId: 'nav-planes', icono: CreditCard, visible: esAdminClinica },
+  { etiqueta: 'Usuarios', ruta: '/usuarios', guiaId: 'nav-usuarios', icono: Users, visible: admin },
+  { etiqueta: 'Roles', ruta: '/roles', guiaId: 'nav-roles', icono: ShieldCheck, visible: admin },
+  { etiqueta: 'Personal', ruta: '/personal', guiaId: 'nav-personal', icono: Briefcase, visible: admin },
+  { etiqueta: 'Pacientes', ruta: '/pacientes', guiaId: 'nav-pacientes', icono: Users, visible: pacientes },
+  { etiqueta: 'Citas', ruta: '/citas', guiaId: 'nav-citas', icono: CalendarCheck, visible: citas },
+  { etiqueta: 'Mi agenda', ruta: '/mi-agenda', guiaId: 'nav-mi-agenda', icono: CalendarCheck, visible: miAgenda },
+  { etiqueta: 'Especialidades', ruta: '/especialidades', guiaId: 'nav-especialidades', icono: Stethoscope, visible: clinico },
+  { etiqueta: 'Médicos', ruta: '/medicos', guiaId: 'nav-medicos', icono: HeartPulse, visible: clinico },
+  { etiqueta: 'Horarios', ruta: '/horarios', guiaId: 'nav-horarios', icono: Clock, visible: clinico },
 ]

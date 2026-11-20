@@ -11,6 +11,7 @@ import { citasApi, type Cita } from '@/api/modules/citas'
 import { consultasApi, type ConsultaCrearInput } from '@/api/modules/consultas'
 import { estudiosMedicosApi } from '@/api/modules/estudiosMedicos'
 import { recetasApi } from '@/api/modules/recetas'
+import { AsistenteGuia } from '@/components/asistente/AsistenteGuia'
 import { Button } from '@/components/ui/Button'
 import { Field } from '@/components/ui/Field'
 import { inputClass } from '@/components/ui/styles'
@@ -230,7 +231,7 @@ function PanelConsultaRegistrada({ consultaId }: { consultaId: number }) {
         <section className="space-y-2">
           <div className="flex items-center justify-between gap-2">
             <h3 className="text-sm font-semibold text-slate-900">Recetas emitidas</h3>
-            <Button onClick={() => setEmitiendoReceta(true)}>Agregar receta</Button>
+            <Button data-guia-id="btn-sala-agregar-receta" onClick={() => setEmitiendoReceta(true)}>Agregar receta</Button>
           </div>
 
           {consulta.recetas.length === 0 ? (
@@ -389,6 +390,7 @@ function FormularioConsultaSala({ cita, onRegistrada }: { cita: Cita; onRegistra
         <div className="flex items-center justify-between gap-2">
           <h3 className="text-sm font-semibold text-slate-900">Receta médica (opcional)</h3>
           <Button
+            data-guia-id="btn-sala-agregar-medicamento"
             variante="secundario"
             onClick={() => append({ ...FILA_MEDICAMENTO })}
           >
@@ -441,7 +443,7 @@ function FormularioConsultaSala({ cita, onRegistrada }: { cita: Cita; onRegistra
       </div>
 
       <div className="flex justify-end">
-        <Button type="submit" cargando={guardar.isPending}>Guardar consulta</Button>
+        <Button data-guia-id="btn-sala-guardar-consulta" type="submit" cargando={guardar.isPending}>Guardar consulta</Button>
       </div>
     </form>
   )
@@ -481,6 +483,7 @@ function EstudiosCitaSala({ citaId }: { citaId: number }) {
           {estudiosQuery.data.results.map((estudio) => (
             <button
               key={estudio.id}
+              data-guia-id="btn-sala-abrir-visor"
               type="button"
               onClick={() =>
                 window.open(`/estudios/${estudio.id}/visor`, '_blank', 'noopener,noreferrer')
@@ -559,7 +562,7 @@ export function SalaVirtualPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variante="peligro" onClick={cerrarPestanaOVolver}>
+          <Button data-guia-id="btn-sala-cancelar" variante="peligro" onClick={cerrarPestanaOVolver}>
             Cancelar videollamada
           </Button>
         </div>
@@ -592,6 +595,7 @@ export function SalaVirtualPage() {
           </aside>
         )}
       </main>
+      <AsistenteGuia />
     </div>
   )
 }

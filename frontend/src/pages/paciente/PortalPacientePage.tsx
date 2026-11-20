@@ -10,5 +10,6 @@ const OPCIONES: { id: Seccion; texto: string }[] = [{ id: 'datos', texto: 'Mis d
 
 export function PortalPacientePage() {
   const [seccion, setSeccion] = useState<Seccion>('datos')
-  return <section className="space-y-5"><div><h1 className="text-2xl font-semibold">Mi información</h1><p className="mt-1 text-sm text-slate-600">Consulta tus datos clínicos. Este portal es de solo lectura.</p></div><nav className="flex flex-wrap gap-2">{OPCIONES.map((o) => <Button key={o.id} variante={seccion === o.id ? 'primario' : 'secundario'} onClick={() => setSeccion(o.id)}>{o.texto}</Button>)}</nav>{seccion === 'datos' && <MiDatosPanel />}{seccion === 'historia' && <MiHistoriaPanel />}{seccion === 'citas' && <MisCitasPanel />}{seccion === 'consultas' && <MisConsultasPanel />}</section>
+  const pestanaActiva = OPCIONES.find((o) => o.id === seccion)?.texto ?? 'Mis datos'
+  return <section data-guia-pestana-activa={pestanaActiva} className="space-y-5"><div><h1 className="text-2xl font-semibold">Mi información</h1><p className="mt-1 text-sm text-slate-600">Consulta tus datos clínicos. Este portal es de solo lectura.</p></div><nav className="flex flex-wrap gap-2">{OPCIONES.map((o) => <Button key={o.id} data-guia-id={`tab-portal-${o.id}`} variante={seccion === o.id ? 'primario' : 'secundario'} onClick={() => setSeccion(o.id)}>{o.texto}</Button>)}</nav>{seccion === 'datos' && <MiDatosPanel />}{seccion === 'historia' && <MiHistoriaPanel />}{seccion === 'citas' && <MisCitasPanel />}{seccion === 'consultas' && <MisConsultasPanel />}</section>
 }

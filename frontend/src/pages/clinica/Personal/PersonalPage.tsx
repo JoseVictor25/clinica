@@ -139,6 +139,7 @@ export function PersonalPage() {
           </Button>
 
           <Button
+            data-guia-id="btn-fila-personal-cuenta"
             variante="secundario"
             disabled={finalizar.isPending || reactivar.isPending}
             onClick={() => setAVincular(fila)}
@@ -177,6 +178,7 @@ export function PersonalPage() {
         </h1>
 
         <Button
+          data-guia-id="btn-nuevo-personal"
           disabled={finalizar.isPending || reactivar.isPending}
           onClick={() => setFormulario(null)}
         >

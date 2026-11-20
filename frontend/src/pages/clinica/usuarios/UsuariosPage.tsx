@@ -115,6 +115,7 @@ export function UsuariosPage() {
       celda: (fila) => (
         <div className="flex flex-wrap justify-end gap-2">
           <Button
+            data-guia-id="btn-fila-usuario-editar"
             variante="secundario"
             disabled={cambiarEstado.isPending}
             onClick={() => setFormulario(fila)}
@@ -123,6 +124,7 @@ export function UsuariosPage() {
           </Button>
 
           <Button
+            data-guia-id="btn-fila-usuario-roles"
             variante="secundario"
             disabled={cambiarEstado.isPending}
             onClick={() => setUsuarioRoles(fila)}
@@ -162,11 +164,13 @@ export function UsuariosPage() {
         La reactivación respeta el límite del plan.
       </p>
 
-      <SearchBar
-        valor={search}
-        onBuscar={setSearch}
-        placeholder="Buscar por usuario o correo…"
-      />
+      <div data-guia-id="buscador-usuarios">
+        <SearchBar
+          valor={search}
+          onBuscar={setSearch}
+          placeholder="Buscar por usuario o correo…"
+        />
+      </div>
 
       <DataTable
         filas={query.data?.results}

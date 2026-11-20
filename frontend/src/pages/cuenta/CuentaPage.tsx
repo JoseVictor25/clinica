@@ -59,7 +59,7 @@ export function CuentaPage() {
       <Field id="password-confirmacion" label="Confirmar nueva contraseña" error={errores.confirmacion}>
         <input id="password-confirmacion" type="password" autoComplete="new-password" className={inputClass} required value={confirmacion} onChange={(e) => setConfirmacion(e.target.value)} />
       </Field>
-      <Button type="submit" cargando={guardar.isPending}>Actualizar contraseña</Button>
+      <Button data-guia-id="btn-cambiar-password" type="submit" cargando={guardar.isPending}>Actualizar contraseña</Button>
     </form>
   </section>
 }
