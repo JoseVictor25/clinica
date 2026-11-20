@@ -21,6 +21,11 @@ def url_detalle(paciente, alergia):
     return f"{url_lista(paciente)}{alergia.pk}/"
 
 
+@pytest.fixture(autouse=True)
+def paciente_base_asignado_al_medico(otorgar_acceso_medico_a_paciente, paciente_a):
+    otorgar_acceso_medico_a_paciente(paciente_a)
+
+
 def datos_alergia(**cambios):
     datos = {
         "nombre": "Penicilina",
@@ -395,6 +400,7 @@ def test_mismo_nombre_en_historias_distintas_y_semantica_exacta(
     suscripcion_amplia,
     alergia_a,
     clinica_configurada,
+    otorgar_acceso_medico_a_paciente,
 ):
     otro = Paciente.all_objects.create(
         clinica=clinica_configurada,
@@ -406,6 +412,7 @@ def test_mismo_nombre_en_historias_distintas_y_semantica_exacta(
         telefono="70000032",
     )
     otra_historia = HistoriaClinica.all_objects.create(paciente=otro)
+    otorgar_acceso_medico_a_paciente(otro)
     cliente = cliente_autenticado(medico_a)
 
     otra_historia_respuesta = cliente.post(

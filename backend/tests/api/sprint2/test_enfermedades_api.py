@@ -22,6 +22,11 @@ def url_detalle(paciente, enfermedad):
     return f"{url_lista(paciente)}{enfermedad.pk}/"
 
 
+@pytest.fixture(autouse=True)
+def paciente_base_asignado_al_medico(otorgar_acceso_medico_a_paciente, paciente_a):
+    otorgar_acceso_medico_a_paciente(paciente_a)
+
+
 def datos_enfermedad(**cambios):
     datos = {
         "nombre": "Hipertensión arterial",
