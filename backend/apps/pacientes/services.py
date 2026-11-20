@@ -10,6 +10,7 @@ from apps.core.api_exceptions import (
 )
 from apps.core.identidad import CAMPOS_IDENTIDAD, copiar_identidad
 from apps.personal.models import Personal
+from apps.seguridad.cuentas_services import vincular_paciente_a_cuenta
 
 from .models import Alergia, Enfermedad, HistoriaClinica, Paciente
 
@@ -63,6 +64,9 @@ def crear_paciente(clinica, datos):
                 )
         except IntegrityError as exc:
             raise _conflicto_ci() from exc
+
+        if personal is not None and personal.usuario_id:
+            vincular_paciente_a_cuenta(paciente, personal.usuario)
 
         HistoriaClinica.all_objects.create(paciente=paciente)
         return paciente

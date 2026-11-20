@@ -72,6 +72,43 @@ def test_crear_cuenta_desde_personal_es_atomico_y_asigna_roles(
 
 
 @pytest.mark.django_db
+def test_crear_cuenta_de_personal_vincula_paciente_existente_y_agrega_rol_paciente(
+    admin_a, clinica_configurada, suscripcion_amplia
+):
+    personal = crear_personal(clinica_configurada, "CI-DOBLE-ROL")
+    personal.cargo = "RECEPCION"
+    personal.save(update_fields=["cargo"])
+    paciente = crear_paciente(clinica_configurada, "CI-DOBLE-ROL")
+    rol_recepcionista = Rol.all_objects.get(
+        clinica=clinica_configurada, nombre=ROL_RECEPCIONISTA
+    )
+
+    respuesta = cliente_autenticado(admin_a).post(
+        f"/api/v1/personal/{personal.pk}/crear-cuenta/",
+        {
+            "username": "juan_doble_rol",
+            "email": "juan@example.com",
+            "password": "ClaveSegura123!",
+            "roles": [rol_recepcionista.pk],
+        },
+        format="json",
+    )
+
+    assert respuesta.status_code == 201, respuesta.data
+    personal.refresh_from_db()
+    paciente.refresh_from_db()
+    assert paciente.usuario_id == personal.usuario_id
+    assert set(respuesta.data["cuenta"]["roles"]) == {
+        ROL_RECEPCIONISTA,
+        ROL_PACIENTE,
+    }
+    assert set(
+        UsuarioRol.all_objects.filter(usuario_id=personal.usuario_id)
+        .values_list("rol__nombre", flat=True)
+    ) == {ROL_RECEPCIONISTA, ROL_PACIENTE}
+
+
+@pytest.mark.django_db
 def test_crear_cuenta_paciente_fuerza_rol_y_rechaza_roles_del_cliente(
     admin_a, clinica_configurada, suscripcion_amplia
 ):
